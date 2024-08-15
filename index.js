@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import {fileURLToPath} from 'url';
 
-const hostname = '127.0.0.1';
+const hostname = '0.0.0.0';
 const port = 3000;
 
 const __filename = fileURLToPath(import.meta.url);
