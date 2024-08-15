@@ -1,0 +1,12 @@
+{
+  "name": "markup",
+  "version": "1.0.0",
+  "description": "markup pratices for brian",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "brian ahn",
+  "license": "ISC"
+}
