@@ -2,12 +2,17 @@
   let list = $state([])
 
   const appendNumber = () => {
-    const numbers = Array(6)
-      .fill()
-      .map((_) => Math.floor(Math.random() * 45) + 1)
-      .sort((a, b) => a - b)
+    list = [...list, getUniqueRandomNumbers()]
+  }
 
-    list = [...list, numbers]
+  const getUniqueRandomNumbers = () => {
+    const numbers = new Set();
+
+    while (numbers.size < 6) {
+      numbers.add(Math.floor(Math.random() * 45) + 1);
+    }
+
+    return [...numbers].sort((a, b) => a - b);
   }
 
   const getBackGroundColor = (number) => {
