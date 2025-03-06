@@ -10,12 +10,12 @@
     list = [...list, numbers]
   }
 
-  const getColor = (number) => {
-    if (number <= 10) return 'yellow'
-    if (number <= 20) return 'blue'
-    if (number <= 30) return 'red'
+  const getBackGroundColor = (number) => {
+    if (number <= 10) return 'bg-yellow-500'
+    if (number <= 20) return 'bg-blue-500'
+    if (number <= 30) return 'bg-red-500'
 
-    return 'green'
+    return 'bg-green-500'
   }
 </script>
 
@@ -31,7 +31,7 @@
       {#each list as numbers}
         <div class="flex gap-3">
           {#each numbers as number}
-            <div class={`h-15 w-15 content-center rounded-full bg-${getColor(number)}-500 text-xl font-bold`}>{number}</div>
+            <div class={`h-15 w-15 content-center rounded-full text-xl font-bold ${getBackGroundColor(number)}`}>{number}</div>
           {/each}
         </div>
       {/each}
