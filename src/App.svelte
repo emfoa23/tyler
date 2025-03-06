@@ -31,7 +31,7 @@
       {#each list as numbers}
         <div class="flex gap-3">
           {#each numbers as number}
-            <div class={`h-15 w-15 content-center rounded-full text-xl font-bold ${getBackGroundColor(number)}`}>{number}</div>
+            <div class={`h-10 w-10 content-center rounded-full font-bold ${getBackGroundColor(number)}`}>{number}</div>
           {/each}
         </div>
       {/each}
