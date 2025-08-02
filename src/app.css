@@ -1,5 +1,10 @@
 @import 'tailwindcss';
 
+/* 모바일 줌인 줌아웃 방지 - 전역 설정 */
+html {
+  touch-action: manipulation;
+}
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -21,6 +26,14 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  /* 모바일 줌인 줌아웃 방지 */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 h1 {
