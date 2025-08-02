@@ -28,29 +28,39 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         port: 22
         script: |
-          # GitHub Container Registry 로그인
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "🚀 배포 프로세스 시작..."
           
-          # 기존 컨테이너 중지 및 삭제
+          echo "📦 GitHub Container Registry 로그인 중..."
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "✅ 로그인 완료"
+          
+          echo "🛑 기존 컨테이너 중지 및 삭제 중..."
           docker stop tyler-app 2>/dev/null || true
           docker rm tyler-app 2>/dev/null || true
+          echo "✅ 기존 컨테이너 정리 완료"
           
-          # 최신 이미지 pull
+          echo "⬇️ 최신 Docker 이미지 다운로드 중..."
           docker pull ghcr.io/${{ github.repository }}:latest
+          echo "✅ 이미지 다운로드 완료"
           
-          # 새 컨테이너 실행
+          echo "🚀 새 컨테이너 실행 중..."
           docker run -d \
             --name tyler-app \
             -p 80:80 \
             --restart unless-stopped \
             ghcr.io/${{ github.repository }}:latest
+          echo "✅ 컨테이너 실행 완료"
           
-          # 컨테이너 상태 확인
+          echo "🔍 컨테이너 상태 확인 중..."
           docker ps | grep tyler-app
+          echo "✅ 컨테이너 상태 확인 완료"
           
-          echo "Deployment completed successfully!"
+          echo "🎉 배포가 성공적으로 완료되었습니다!"
 
     - name: Health check
       run: |
+        echo "🏥 헬스 체크 시작..."
         sleep 10
-        curl -f http://${{ secrets.EC2_HOST }} || exit 1 
+        echo "🔍 애플리케이션 상태 확인 중..."
+        curl -f http://${{ secrets.EC2_HOST }} || exit 1
+        echo "✅ 헬스 체크 완료 - 애플리케이션이 정상적으로 실행 중입니다!" 
