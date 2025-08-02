@@ -1,0 +1,56 @@
+name: Deploy to EC2 via SSH Action
+
+on:
+  push:
+    branches: [ main ]
+  workflow_run:
+    workflows: ["Build and Push Docker Image"]
+    types: [completed]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          # GitHub Container Registry 로그인
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          # 기존 컨테이너 중지 및 삭제
+          docker stop tyler-app 2>/dev/null || true
+          docker rm tyler-app 2>/dev/null || true
+          
+          # 최신 이미지 pull
+          docker pull ghcr.io/${{ github.repository }}:latest
+          
+          # 새 컨테이너 실행
+          docker run -d \
+            --name tyler-app \
+            -p 80:80 \
+            --restart unless-stopped \
+            ghcr.io/${{ github.repository }}:latest
+          
+          # 컨테이너 상태 확인
+          docker ps | grep tyler-app
+          
+          echo "Deployment completed successfully!"
+
+    - name: Health check
+      run: |
+        sleep 10
+        curl -f http://${{ secrets.EC2_HOST }} || exit 1 
