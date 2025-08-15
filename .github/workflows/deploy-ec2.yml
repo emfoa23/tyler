@@ -2,8 +2,9 @@ name: Deploy to EC2 via SSH Action
 
 on:
   workflow_run:
-    workflows: ["Build and Push Docker Image"]
-    types: [completed]
+    workflows: [ "Build and Push Docker Image" ]
+    types: [ completed ]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
@@ -12,70 +13,74 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}
-    
+    # 케이스 1: docker-push 워크플로우가 성공했을 때 (자동 실행)
+    # 케이스 2: 수동으로 workflow_dispatch로 실행했을 때
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ec2-user
-        key: ${{ secrets.EC2_SSH_KEY }}
-        port: 22
-        script: |
-          set -e  # 스크립트에서 오류 발생 시 즉시 종료
-          
-          echo "🚀 배포 프로세스 시작..."
-          
-          echo "📦 GitHub Container Registry 로그인 중..."
-          if ! echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin; then
-            echo "❌ Docker 로그인 실패"
-            exit 1
-          fi
-          echo "✅ 로그인 완료"
-          
-          echo "🛑 기존 컨테이너 중지 및 삭제 중..."
-          docker stop tyler-app 2>/dev/null || true
-          docker rm tyler-app 2>/dev/null || true
-          echo "✅ 기존 컨테이너 정리 완료"
-          
-          echo "⬇️ 최신 Docker 이미지 다운로드 중..."
-          if ! docker pull ghcr.io/${{ github.repository }}:latest; then
-            echo "❌ Docker 이미지 다운로드 실패"
-            exit 1
-          fi
-          echo "✅ 이미지 다운로드 완료"
-          
-          echo "🚀 새 컨테이너 실행 중..."
-          if ! docker run -d \
-            --name tyler-app \
-            -p 80:80 \
-            --restart unless-stopped \
-            ghcr.io/${{ github.repository }}:latest; then
-            echo "❌ 컨테이너 실행 실패"
-            exit 1
-          fi
-          echo "✅ 컨테이너 실행 완료"
-          
-          echo "🔍 컨테이너 상태 확인 중..."
-          if ! docker ps | grep tyler-app; then
-            echo "❌ 컨테이너가 실행되지 않음"
-            exit 1
-          fi
-          echo "✅ 컨테이너 상태 확인 완료"
-          
-          echo "🎉 배포가 성공적으로 완료되었습니다!"
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.WEB_SERVER_HOST }}
+          username: ec2-user
+          key: ${{ secrets.AWS_SSH_KEY }}
+          port: 22
+          script: |
+            set -e  # 스크립트에서 오류 발생 시 즉시 종료
+            
+            echo "🚀 배포 프로세스 시작..."
+            
+            echo "📦 GitHub Container Registry 로그인 중..."
+            if ! echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin; then
+              echo "❌ Docker 로그인 실패"
+              exit 1
+            fi
+            echo "✅ 로그인 완료"
+            
+            echo "🛑 기존 컨테이너 중지 및 삭제 중..."
+            docker stop tyler-app 2>/dev/null || true
+            docker rm tyler-app 2>/dev/null || true
+            echo "✅ 기존 컨테이너 정리 완료"
+            
+            echo "⬇️ 최신 Docker 이미지 다운로드 중..."
+            if ! docker pull ghcr.io/${{ github.repository }}:latest; then
+              echo "❌ Docker 이미지 다운로드 실패"
+              exit 1
+            fi
+            echo "✅ 이미지 다운로드 완료"
+            
+            echo "🚀 새 컨테이너 실행 중..."
+            if ! docker run -d \
+              --name tyler-app \
+              -p 80:80 \
+              --restart unless-stopped \
+              ghcr.io/${{ github.repository }}:latest; then
+              echo "❌ 컨테이너 실행 실패"
+              exit 1
+            fi
+            echo "✅ 컨테이너 실행 완료"
+            
+            echo "🔍 컨테이너 상태 확인 중..."
+            if ! docker ps | grep tyler-app; then
+              echo "❌ 컨테이너가 실행되지 않음"
+              exit 1
+            fi
+            echo "✅ 컨테이너 상태 확인 완료"
+            
+            echo "🎉 배포가 성공적으로 완료되었습니다!"
 
-    - name: Health check
-      run: |
-        echo "🏥 헬스 체크 시작..."
-        sleep 10
-        echo "🔍 애플리케이션 상태 확인 중..."
-        if ! curl -f http://${{ secrets.EC2_HOST }}; then
-          echo "❌ 헬스 체크 실패 - 애플리케이션이 정상적으로 실행되지 않음"
-          exit 1
-        fi
-        echo "✅ 헬스 체크 완료 - 애플리케이션이 정상적으로 실행 중입니다!" 
+      - name: Health check
+        run: |
+          echo "🏥 헬스 체크 시작..."
+          sleep 10
+          echo "🔍 애플리케이션 상태 확인 중..."
+          if ! curl -f http://${{ secrets.WEB_SERVER_HOST }}; then
+            echo "❌ 헬스 체크 실패 - 애플리케이션이 정상적으로 실행되지 않음"
+            exit 1
+          fi
+          echo "✅ 헬스 체크 완료 - 애플리케이션이 정상적으로 실행 중입니다!"
