@@ -1,0 +1,63 @@
+name: Collect Lottery Store Data
+
+on:
+  schedule:
+    # 매일 자정 (KST 기준) - UTC 15:00 = KST 00:00
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+
+jobs:
+  collect-and-store:
+    runs-on: ubuntu-latest
+    env:
+      OUT_DIR: "${{ github.workspace }}/data"
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Collect lottery store data (write in workspace)
+        run: |
+          # js script 로 로또 판매점 정보 수집
+          mkdir -p $OUT_DIR
+          node ci/collect-stores.js
+
+      - name: Import data to MongoDB using Docker
+        run: |
+          # 절대 경로로 마운트하여 사용
+          echo "🔍 MongoDB import 시작..."
+          echo "📁 마운트할 데이터 디렉토리: $(pwd)/data"
+          echo "📁 파일 존재 여부: $(ls -la $(pwd)/data/lottery-stores.json 2>/dev/null || echo '파일 없음')"
+          
+          # Docker mongo:7 이미지를 사용하여 mongoimport 실행
+          docker run --rm \
+            -v "$(pwd)/data:/data:rw" \
+            mongo:7 \
+            mongoimport \
+            --host ${{ secrets.MONGO_HOST }}:27017 \
+            --username ${{ secrets.MONGO_USERNAME }} \
+            --password ${{ secrets.MONGO_PASSWORD }} \
+            --db tyler \
+            --collection stores \
+            --authenticationDatabase=admin \
+            --file /data/lottery-stores.json \
+            --jsonArray \
+            --drop
+          
+          echo "Data import completed successfully"
+
+      - name: Verify import
+        run: |
+          # import 결과 확인
+          docker run --rm \
+            mongo:7 \
+            mongosh "mongodb://${{ secrets.MONGO_USERNAME }}:${{ secrets.MONGO_PASSWORD }}@${{ secrets.MONGO_HOST }}:27017/tyler?authSource=admin" \
+            --eval "
+              const count = db.stores.countDocuments();
+              print('Total stores imported: ' + count);
+            "
