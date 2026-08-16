@@ -1,5 +1,6 @@
 // 동행복권 신규 API 클라이언트 (2026-08 개편 후 사이트 기준).
 // 전부 GET + UTF-8 JSON. KR IP 기준 헤더 없이 호출 가능.
+import https from "node:https";
 import { sleep } from "./util.mjs";
 
 const BASE = "https://www.dhlottery.co.kr";
@@ -25,24 +26,42 @@ export function expectedLatestDraw(now = new Date()) {
   return BASE_DRAW.no + Math.max(0, weeks);
 }
 
+// fetch(undici) 의 keep-alive 소켓이 쿨다운/DB작업 등 유휴 구간에서 서버측에 끊기고,
+// 죽은 소켓 재사용이 fetch failed 로 이어지는 것이 실측됨 (실패 전건이 유휴 직후 첫 요청).
+// curl(요청마다 새 연결)은 같은 조건에서 전부 성공 — 그래서 요청마다 새 연결을 쓴다.
+function httpGetText(url) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { agent: false, headers: { accept: "application/json" } }, (res) => {
+      // 구 endpoint 는 전부 302 로 죽었다 — 200 외 전부(리다이렉트 포함) 실패로 취급.
+      if (res.statusCode !== 200) {
+        res.resume();
+        reject(new Error(`HTTP ${res.statusCode}`));
+        return;
+      }
+      const chunks = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+      res.on("error", reject);
+    });
+    req.setTimeout(20_000, () => req.destroy(new Error("request timeout")));
+    req.on("error", reject);
+  });
+}
+
 async function getData(path, params, { tries = 8 } = {}) {
   const qs = new URLSearchParams(params).toString();
   const url = `${BASE}${path}?${qs}`;
   let lastErr;
   for (let i = 0; i < tries; i++) {
     try {
-      // 구 endpoint 는 전부 302 로 죽었다 — redirect 는 차단/개편 신호이므로 실패로 취급.
-      const res = await fetch(url, { redirect: "error" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+      const json = JSON.parse(await httpGetText(url));
       if (!json || typeof json !== "object" || !("data" in json)) {
         throw new Error("unexpected payload shape");
       }
       return json.data;
     } catch (e) {
       lastErr = e;
-      // 지속 크롤 수 분 만에 IP 스로틀이 걸리는 것이 실측됨(로컬·GH 러너 공통).
-      // 일시 차단은 수십 초~수 분 내 풀리므로 상한 45s 지수 백오프로 버틴다.
+      // IP 스로틀(수십 초~수 분 내 해제)도 같은 재시도로 버틴다 — 상한 45s 지수 백오프.
       await sleep(Math.min(1000 * (i + 1) * (i + 1), 45_000) + Math.floor(Math.random() * 1000));
     }
   }
