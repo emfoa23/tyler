@@ -10,13 +10,41 @@ export const metadata: Metadata = {
   },
   description:
     "로또 6/45 번호 생성, 회차별 당첨 결과, 1·2등 배출 명당 랭킹. 생성한 번호가 실제로 당첨됐는지도 확인하세요.",
+  keywords: [
+    "로또", "로또 번호 생성", "로또 번호 추천", "로또 당첨번호", "로또 당첨번호 조회",
+    "로또 명당", "로또 1등 판매점", "로또 판매점", "로또 6/45", "당첨 통계",
+  ],
+  alternates: { canonical: "./" },
   openGraph: {
     title: "lottogen — 로또 번호 생성기",
     description: "로또 번호 생성 · 회차별 당첨 결과 · 명당 랭킹",
     url: "https://lottogen.click",
+    siteName: "lottogen",
     locale: "ko_KR",
     type: "website",
   },
+  twitter: {
+    card: "summary",
+    title: "lottogen — 로또 번호 생성기",
+    description: "로또 번호 생성 · 회차별 당첨 결과 · 명당 랭킹",
+  },
+  robots: { index: true, follow: true },
+  other: {
+    "geo.region": "KR",
+    "geo.placename": "대한민국",
+    "content-language": "ko",
+  },
+};
+
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "lottogen",
+  alternateName: "로또젠 — 로또 번호 생성기",
+  url: "https://lottogen.click",
+  inLanguage: "ko",
+  description:
+    "로또 6/45 번호 생성, 회차별 당첨 결과, 1·2등 배출 명당 랭킹을 제공하는 서비스",
 };
 
 const NAV = [
@@ -51,12 +79,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="border-t border-stone-200 bg-white">
           <div className="mx-auto w-full max-w-3xl space-y-1 px-4 py-6 text-xs leading-relaxed text-stone-400">
             <p>
-              본 사이트는 동행복권과 무관한 개인 프로젝트입니다. 당첨 결과·배출점 데이터의 출처는
-              동행복권 공개 데이터이며, 조회 시점에 따라 실제와 차이가 있을 수 있습니다.
+              당첨 결과·배출점 데이터의 출처는 동행복권 공개 데이터이며, 조회 시점에 따라 실제와
+              차이가 있을 수 있습니다.
             </p>
             <p>번호 생성은 완전한 무작위이며 당첨을 보장하지 않습니다. 복권 구매는 책임질 수 있는 범위에서.</p>
           </div>
         </footer>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+        />
       </body>
     </html>
   );

@@ -26,8 +26,8 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-stone-200 bg-white p-6">
-        <div className="flex items-baseline justify-between">
+      <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
           <h1 className="text-xl font-bold">
             제{latest.draw_no}회 당첨번호
           </h1>
@@ -36,7 +36,7 @@ export default async function HomePage() {
         <div className="mt-4">
           <BallRow numbers={drawNumbers(latest)} bonus={latest.bonus} size="lg" />
         </div>
-        <dl className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+        <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-lg bg-stone-50 p-3">
             <dt className="text-stone-500">1등</dt>
             <dd className="mt-0.5 font-semibold">
@@ -48,10 +48,6 @@ export default async function HomePage() {
             <dd className="mt-0.5 font-semibold">
               {latest.r2_winners ?? "-"}명 · 각 {wonShort(latest.r2_prize_each)}
             </dd>
-          </div>
-          <div className="rounded-lg bg-stone-50 p-3">
-            <dt className="text-stone-500">판매액</dt>
-            <dd className="mt-0.5 font-semibold">{wonShort(latest.sales_total)}</dd>
           </div>
         </dl>
         <Link
@@ -115,13 +111,14 @@ export default async function HomePage() {
         <ul className="mt-3 divide-y divide-stone-100">
           {recent.map((d) => (
             <li key={d.draw_no}>
-              <Link
-                href={`/history/${d.draw_no}`}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 hover:bg-stone-50"
-              >
-                <span className="w-16 shrink-0 text-sm font-semibold">제{d.draw_no}회</span>
-                <span className="w-20 shrink-0 text-xs text-stone-500">{dateShort(d.draw_date)}</span>
-                <BallRow numbers={drawNumbers(d)} bonus={d.bonus} size="sm" />
+              <Link href={`/history/${d.draw_no}`} className="block py-2.5 hover:bg-stone-50">
+                <span className="flex items-baseline gap-3">
+                  <span className="text-sm font-semibold">제{d.draw_no}회</span>
+                  <span className="text-xs text-stone-500">{dateShort(d.draw_date)}</span>
+                </span>
+                <span className="mt-1.5 block">
+                  <BallRow numbers={drawNumbers(d)} bonus={d.bonus} size="sm" />
+                </span>
               </Link>
             </li>
           ))}
