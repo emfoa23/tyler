@@ -1,0 +1,33 @@
+# 1회성/복구용 백필. 평상시엔 돌지 않고, 초기 적재·갭 복구·재적재가 필요할 때만
+# 수동 dispatch 한다. (mode: draws | wins | master | verify | all)
+name: backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "draws | wins | master | verify | all"
+        required: false
+        default: "all"
+
+concurrency:
+  group: backfill
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run backfill
+        run: node scripts/backfill.mjs "${{ inputs.mode }}"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

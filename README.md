@@ -50,7 +50,7 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 ## 운영 명령
 
 ```sh
-node scripts/backfill.mjs all      # 1회성 전체 백필 (draws → wins → master → verify)
+node scripts/backfill.mjs all      # 전체 백필 — Actions 의 backfill 워크플로로도 dispatch 가능
 node scripts/sync-draw.mjs         # 주간 동기화 (Actions 가 실행하는 것과 동일)
 node scripts/sync-stores.mjs       # 마스터 동기화
 ```
