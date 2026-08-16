@@ -10,12 +10,12 @@ import { chunks, sleep, uniqueBy } from "./util.mjs";
 import { patchCount, upsert } from "./supa.mjs";
 
 export async function syncMaster(sidos = SIDO) {
-  const startIso = new Date().toISOString();
-  const fullRun = sidos.length === SIDO.length;
   let grand = 0;
+  let closedTotal = 0;
 
   for (const sido of sidos) {
     if (!SIDO.includes(sido)) throw new Error(`unknown sido: ${sido}`);
+    const sidoStartIso = new Date().toISOString();
     const first = await fetchMasterPage(sido, 1);
     const total = first.total ?? 0;
     const rows = [...(first.list ?? [])];
@@ -33,25 +33,24 @@ export async function syncMaster(sidos = SIDO) {
     if (rows.length < total * 0.98) {
       throw new Error(`master ${sido}: collected ${rows.length}/${total}`);
     }
-    // 시도 단위로 즉시 upsert — 런이 중간에 죽어도 완료한 시도는 남는다.
+    // 시도 단위로 즉시 upsert — 런이 중간에 죽어도 완료한 시도는 온전히 남는다.
     const seenAt = new Date().toISOString();
     const mapped = uniqueBy(rows.map((m) => mapMasterStore(m, seenAt)), "store_id");
     for (const chunk of chunks(mapped, 500)) {
       await upsert("stores", chunk, "store_id");
     }
-    grand += mapped.length;
-    console.log(`master ${sido}: ${mapped.length}/${total} upserted`);
-  }
-
-  if (fullRun) {
-    // 전 시도 수집이 성공했을 때만: 이전 마스터에는 있었는데 이번에 사라진 지점을 폐점 처리.
+    // closed 마킹도 시도 단위로 자기완결 — 이 시도를 완주했으므로, 이 시도에서
+    // 과거 마스터엔 있었는데 이번에 안 보인 지점만 폐점 처리한다.
+    // (master_seen_at null = 배출점으로만 알려진 지점·온라인 채널 — 건드리지 않는다.)
     const closed = await patchCount(
-      `stores?master_seen_at=not.is.null&master_seen_at=lt.${encodeURIComponent(startIso)}&status=eq.open`,
+      `stores?sido=eq.${encodeURIComponent(sido)}&master_seen_at=not.is.null&master_seen_at=lt.${encodeURIComponent(sidoStartIso)}&status=eq.open`,
       { status: "closed", updated_at: new Date().toISOString() },
     );
-    console.log(`master sync done: ${grand} stores upserted, ${closed ?? 0} marked closed`);
-  } else {
-    console.log(`master partial sync done (${sidos.join(",")}): ${grand} stores upserted — closed 마킹은 전체 실행에서만`);
+    grand += mapped.length;
+    closedTotal += closed ?? 0;
+    console.log(`master ${sido}: ${mapped.length}/${total} upserted, ${closed ?? 0} closed`);
   }
-  return { stores: grand };
+
+  console.log(`master sync done (${sidos.length}/${SIDO.length} sido): ${grand} upserted, ${closedTotal} closed`);
+  return { stores: grand, closed: closedTotal };
 }

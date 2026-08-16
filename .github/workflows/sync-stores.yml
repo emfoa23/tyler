@@ -1,9 +1,15 @@
 # 주 1회 전국 판매점 마스터 동기화 (일요일 새벽, cron-job.org 가 dispatch).
-# upsert + 미출현 지점 closed 마킹 — 전량 교체가 아니므로 배출 이력이 보존된다.
+# upsert + 미출현 지점 closed 마킹(시도 단위 자기완결) — 전량 교체가 아니므로 배출 이력이 보존된다.
+# 시도별 즉시 반영이라 중간에 죽어도 완료한 시도는 정합 상태로 남는다.
 name: sync-stores
 
 on:
   workflow_dispatch:
+    inputs:
+      arg:
+        description: "시도 목록 (예: 서울,경기 — 비우면 전국)"
+        required: false
+        default: ""
 
 concurrency:
   group: sync-stores
@@ -22,7 +28,7 @@ jobs:
         with:
           node-version: 22
       - name: Sync nationwide store master
-        run: node scripts/sync-stores.mjs
+        run: node scripts/sync-stores.mjs "${{ inputs.arg }}"
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
