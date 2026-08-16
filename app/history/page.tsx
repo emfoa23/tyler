@@ -28,15 +28,16 @@ export default async function HistoryPage({
       <ul className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white px-4">
         {rows.map((d) => (
           <li key={d.draw_no}>
-            <Link
-              href={`/history/${d.draw_no}`}
-              className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3 hover:bg-stone-50"
-            >
-              <span className="w-16 shrink-0 font-semibold">제{d.draw_no}회</span>
-              <span className="w-20 shrink-0 text-xs text-stone-500">{dateShort(d.draw_date)}</span>
-              <BallRow numbers={drawNumbers(d)} bonus={d.bonus} size="sm" />
-              <span className="ml-auto text-xs text-stone-500">
-                1등 {d.r1_winners ?? "-"}명 · 각 {wonShort(d.r1_prize_each)}
+            <Link href={`/history/${d.draw_no}`} className="block py-3 hover:bg-stone-50">
+              <span className="flex flex-wrap items-baseline gap-x-3">
+                <span className="font-semibold">제{d.draw_no}회</span>
+                <span className="text-xs text-stone-500">{dateShort(d.draw_date)}</span>
+                <span className="ml-auto text-xs text-stone-500">
+                  1등 {d.r1_winners ?? "-"}명 · 각 {wonShort(d.r1_prize_each)}
+                </span>
+              </span>
+              <span className="mt-1.5 block">
+                <BallRow numbers={drawNumbers(d)} bonus={d.bonus} size="sm" />
               </span>
             </Link>
           </li>

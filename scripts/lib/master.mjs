@@ -16,8 +16,10 @@ export async function syncMaster() {
     for (let p = 2; p <= pages; p++) {
       const page = await fetchMasterPage(sido, p);
       rows.push(...(page.list ?? []));
-      // 짧은 간격 대량 호출은 IP 단위 일시 차단을 유발한다 (2026-08-16 실측) — 여유 있게.
+      // 짧은 간격 대량 호출은 IP 단위 일시 차단을 유발한다 (2026-08-16 실측) — 여유 있게,
+      // 100페이지마다 쿨다운으로 WAF 속도 윈도우를 넘기지 않는다.
       await sleep(250);
+      if (p % 100 === 0) await sleep(5000);
     }
     // 페이징 중 목록이 흔들려 일부가 비면 전체를 실패로 처리한다
     // (부분 수집 상태로 closed 마킹이 돌면 멀쩡한 지점이 폐점 처리되므로).

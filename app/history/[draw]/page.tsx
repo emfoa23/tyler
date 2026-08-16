@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BallRow } from "@/components/ball";
+import { PagedList } from "@/components/paged-list";
 import { StoreBadges } from "@/components/store-badge";
 import { dateK, won, wonShort } from "@/lib/format";
 import { drawNumbers, isOnlineStore, methodLabel, storeDisplayName } from "@/lib/lotto";
@@ -35,8 +36,10 @@ function WinList({ wins, rank }: { wins: DrawWin[]; rank: 1 | 2 }) {
       <h3 className="mb-1 text-sm font-semibold text-stone-600">
         {rank}등 배출점 <span className="font-normal text-stone-400">({rows.length}건)</span>
       </h3>
-      <ul className="divide-y divide-stone-100 rounded-xl border border-stone-200">
-        {rows.map((w, i) => (
+      <PagedList
+        pageSize={10}
+        className="divide-y divide-stone-100 rounded-xl border border-stone-200 bg-white"
+        items={rows.map((w, i) => (
           <li key={`${w.store.store_id}-${i}`}>
             <Link
               href={`/stores/${w.store.store_id}`}
@@ -61,7 +64,7 @@ function WinList({ wins, rank }: { wins: DrawWin[]; rank: 1 | 2 }) {
             </Link>
           </li>
         ))}
-      </ul>
+      />
     </div>
   );
 }
@@ -107,8 +110,8 @@ export default async function DrawDetailPage({
         </Link>
       </nav>
 
-      <section className="rounded-2xl border border-stone-200 bg-white p-6">
-        <div className="flex items-baseline justify-between">
+      <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
           <h1 className="text-xl font-bold">제{draw.draw_no}회</h1>
           <span className="text-sm text-stone-500">{dateK(draw.draw_date)} 추첨</span>
         </div>
@@ -126,15 +129,16 @@ export default async function DrawDetailPage({
         )}
       </section>
 
-      <section className="overflow-x-auto rounded-2xl border border-stone-200 bg-white p-6">
+      <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
         <h2 className="font-bold">등위별 당첨</h2>
-        <table className="mt-3 w-full min-w-[420px] text-sm">
+        {/* 375px 에서 좌우 스크롤 없이 다 보이도록 총액 열은 sm 이상에서만 */}
+        <table className="mt-3 w-full text-sm">
           <thead>
             <tr className="border-b border-stone-200 text-left text-xs text-stone-500">
               <th className="py-2 font-medium">등위</th>
               <th className="py-2 text-right font-medium">당첨자</th>
               <th className="py-2 text-right font-medium">1인당 당첨금</th>
-              <th className="py-2 text-right font-medium">총 당첨금</th>
+              <th className="hidden py-2 text-right font-medium sm:table-cell">총 당첨금</th>
             </tr>
           </thead>
           <tbody>
@@ -143,7 +147,7 @@ export default async function DrawDetailPage({
                 <td className="py-2 font-semibold">{r.rank}등</td>
                 <td className="py-2 text-right">{r.winners?.toLocaleString("ko-KR") ?? "-"}명</td>
                 <td className="py-2 text-right">{won(r.each)}</td>
-                <td className="py-2 text-right text-stone-500">{wonShort(r.total)}</td>
+                <td className="hidden py-2 text-right text-stone-500 sm:table-cell">{wonShort(r.total)}</td>
               </tr>
             ))}
           </tbody>

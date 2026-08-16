@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BallRow } from "@/components/ball";
+import { PagedList } from "@/components/paged-list";
 import { StoreBadges } from "@/components/store-badge";
 import { dateShort } from "@/lib/format";
 import { isOnlineStore, methodLabel, storeDisplayName } from "@/lib/lotto";
@@ -42,8 +43,8 @@ export default async function StoreDetailPage({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-stone-200 bg-white p-6">
-        <div className="flex items-center gap-2">
+      <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
+        <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-bold">{storeDisplayName(store)}</h1>
           <StoreBadges storeId={store.store_id} status={store.status} />
         </div>
@@ -68,7 +69,7 @@ export default async function StoreDetailPage({
             )}
           </div>
         )}
-        <dl className="mt-4 flex gap-3 text-sm">
+        <dl className="mt-4 flex flex-wrap gap-2 text-sm sm:gap-3">
           <div className="rounded-lg bg-stone-50 px-3 py-2">
             <dt className="inline text-stone-500">1등 </dt>
             <dd className="inline font-bold">{r1}회</dd>
@@ -89,27 +90,28 @@ export default async function StoreDetailPage({
       <section className="space-y-2">
         <h2 className="font-bold">배출 이력</h2>
         {wins.length ? (
-          <ul className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white px-4">
-            {wins.map((w, i) => (
+          <PagedList
+            pageSize={15}
+            className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white px-4"
+            items={wins.map((w, i) => (
               <li key={i}>
-                <Link
-                  href={`/history/${w.draw_no}`}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3 hover:bg-stone-50"
-                >
-                  <span className="w-16 shrink-0 text-sm font-semibold">제{w.draw_no}회</span>
-                  <span className="w-20 shrink-0 text-xs text-stone-500">{dateShort(w.draw_date)}</span>
-                  <span
-                    className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-bold ${
-                      w.rank === 1 ? "bg-amber-100 text-amber-700" : "bg-stone-100 text-stone-600"
-                    }`}
-                  >
-                    {w.rank}등
+                <Link href={`/history/${w.draw_no}`} className="block py-3 hover:bg-stone-50">
+                  <span className="flex items-center gap-x-3">
+                    <span className="text-sm font-semibold">제{w.draw_no}회</span>
+                    <span className="text-xs text-stone-500">{dateShort(w.draw_date)}</span>
+                    <span
+                      className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${
+                        w.rank === 1 ? "bg-amber-100 text-amber-700" : "bg-stone-100 text-stone-600"
+                      }`}
+                    >
+                      {w.rank}등
+                    </span>
+                    {methodLabel(w.method) && (
+                      <span className="text-xs text-stone-500">{methodLabel(w.method)}</span>
+                    )}
                   </span>
-                  {methodLabel(w.method) && (
-                    <span className="shrink-0 text-xs text-stone-500">{methodLabel(w.method)}</span>
-                  )}
                   {w.draw && (
-                    <span className="ml-auto">
+                    <span className="mt-1.5 block">
                       <BallRow
                         numbers={[w.draw.n1, w.draw.n2, w.draw.n3, w.draw.n4, w.draw.n5, w.draw.n6]}
                         size="sm"
@@ -119,7 +121,7 @@ export default async function StoreDetailPage({
                 </Link>
               </li>
             ))}
-          </ul>
+          />
         ) : (
           <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-500">
             아직 1·2등 배출 이력이 없습니다.

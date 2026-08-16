@@ -25,7 +25,7 @@ export function expectedLatestDraw(now = new Date()) {
   return BASE_DRAW.no + Math.max(0, weeks);
 }
 
-async function getData(path, params, { tries = 6 } = {}) {
+async function getData(path, params, { tries = 8 } = {}) {
   const qs = new URLSearchParams(params).toString();
   const url = `${BASE}${path}?${qs}`;
   let lastErr;
@@ -41,8 +41,9 @@ async function getData(path, params, { tries = 6 } = {}) {
       return json.data;
     } catch (e) {
       lastErr = e;
-      // 장시간 연속 호출 중 일시적 차단/리셋을 견디도록 지수 백오프 + 지터
-      await sleep(1000 * (i + 1) * (i + 1) + Math.floor(Math.random() * 500));
+      // 지속 크롤 수 분 만에 IP 스로틀이 걸리는 것이 실측됨(로컬·GH 러너 공통).
+      // 일시 차단은 수십 초~수 분 내 풀리므로 상한 45s 지수 백오프로 버틴다.
+      await sleep(Math.min(1000 * (i + 1) * (i + 1), 45_000) + Math.floor(Math.random() * 1000));
     }
   }
   throw new Error(`dhlottery request failed: ${path}?${qs} — ${lastErr}`);

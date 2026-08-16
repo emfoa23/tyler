@@ -67,8 +67,10 @@ async function backfillWins() {
     await insert("store_wins", wins.list.map((w) => mapWinRow(w, d)));
     games += total;
     if (epsd % 50 === 0) console.log(`wins: through draw ${epsd} (${games} rows this run)`);
-    // 짧은 간격 대량 호출은 IP 단위 일시 차단을 유발한다 (2026-08-16 실측) — 여유 있게.
+    // 짧은 간격 대량 호출은 IP 단위 일시 차단을 유발한다 (2026-08-16 실측) — 여유 있게,
+    // 30회차마다 쿨다운으로 WAF 속도 윈도우를 넘기지 않는다.
     await sleep(350);
+    if (epsd % 30 === 0) await sleep(5000);
   }
   console.log(`wins: done (${games} rows inserted this run)`);
 }
