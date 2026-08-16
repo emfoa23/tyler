@@ -1,137 +1,19 @@
-# Dependencies
+# deps / build
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+.next/
+out/
 
-# Build outputs
-dist/
-dist-ssr/
-build/
-*.local
-
-# Environment and secrets
+# env
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-local/.secrets
-*.secrets
+.env.*
 
-# Logs
-logs/
-*.log
+# vercel
+.vercel/
 
-# Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-*.lcov
-
-# nyc test coverage
-.nyc_output/
-
-# Dependency directories
-jspm_packages/
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional stylelint cache
-.stylelintcache
-
-# Microbundle cache
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# Next.js build output
-.next
-
-# Nuxt.js build / generate output
-.nuxt
-dist
-
-# Storybook build outputs
-.out
-.storybook-out
-
-# Temporary folders
-tmp/
-temp/
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea/
-*.swp
-*.swo
-*~
-
-# OS generated files
+# misc
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+*.tsbuildinfo
+next-env.d.ts
 
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Docker
-.dockerignore
-
-# GitHub Actions
-.github/actions/
-
-# Local development
-local/test-data/
-local/logs/
-local/temp/
-
-# MongoDB data (if running locally)
-data/
-*.dat
-*.lock
-
-# Backup files
-*.bak
-*.backup
-*.old
-
-# Archive files
-*.zip
-*.tar.gz
-*.rar
-
-# IDE specific files
-*.sublime-project
-*.sublime-workspace
+# local tooling
+.claude/

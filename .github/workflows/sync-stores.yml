@@ -1,0 +1,28 @@
+# 주 1회 전국 판매점 마스터 동기화 (일요일 새벽, cron-job.org 가 dispatch).
+# upsert + 미출현 지점 closed 마킹 — 전량 교체가 아니므로 배출 이력이 보존된다.
+name: sync-stores
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: sync-stores
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Sync nationwide store master
+        run: node scripts/sync-stores.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
