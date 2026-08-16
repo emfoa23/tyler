@@ -1,7 +1,8 @@
-// 1회성 백필: node scripts/backfill.mjs [draws|wins|master|verify|all]
+// 1회성 백필: node scripts/backfill.mjs [draws|wins|master|verify|all] [master시도목록]
 // - draws : 1회차부터 전체 당첨결과 (10회차 윈도우 요청, ~124 요청)
 // - wins  : 262회차(데이터 최초 존재)부터 회차별 1·2등 배출점 (~976 요청)
-// - master: 전국 판매점 마스터
+// - master: 전국 판매점 마스터. 두 번째 인자로 "서울,경기" 처럼 시도 부분집합 지정 가능
+//           (IP 스로틀 회피용 — 그룹별로 러너를 바꿔 dispatch)
 // - verify: 적재 건수·갭 검증
 import {
   FIRST_WIN_SHOP_DRAW, expectedLatestDraw,
@@ -9,7 +10,7 @@ import {
 } from "./lib/dhlottery.mjs";
 import { syncMaster } from "./lib/master.mjs";
 import { chunks, sleep, uniqueBy } from "./lib/util.mjs";
-import { countRows, del, insert, select, selectAll, upsert } from "./lib/supa.mjs";
+import { countRows, insert, select, selectAll, upsert } from "./lib/supa.mjs";
 
 const mode = process.argv[2] || "all";
 const latest = expectedLatestDraw();
@@ -51,9 +52,13 @@ async function backfillWins() {
     const drawDate = drawDates.get(epsd);
     if (!drawDate) { console.warn(`wins ${epsd}: draw missing, skip`); continue; }
     const existing = await countRows(`store_wins?draw_no=eq.${epsd}`);
+    // 행이 이미 있으면 API 호출 없이 스킵 — 스킵 구간에서 dhlottery 요청 예산을
+    // 태우면 프런티어 도달 전에 스로틀에 걸린다(2026-08-16 실측: 6런이 13회차 전진).
+    // 최신 회차의 드리프트 재보정은 sync-draw(최근 3회차)가 담당한다.
+    if (existing > 0) continue;
     const wins = await fetchWins(epsd);
     const total = wins.total ?? 0;
-    if (existing === total) { continue; }
+    if (!total) { console.warn(`wins ${epsd}: API total=0, skip`); continue; }
     const d = { draw_no: epsd, draw_date: drawDate };
     const newStores = uniqueBy(
       wins.list.map(mapWinStore).filter((s) => !knownStores.has(s.store_id)),
@@ -63,7 +68,6 @@ async function backfillWins() {
       await upsert("stores", newStores, "store_id", { ignore: true });
       for (const s of newStores) knownStores.add(s.store_id);
     }
-    if (existing > 0) await del(`store_wins?draw_no=eq.${epsd}`);
     await insert("store_wins", wins.list.map((w) => mapWinRow(w, d)));
     games += total;
     if (epsd % 50 === 0) console.log(`wins: through draw ${epsd} (${games} rows this run)`);
@@ -94,7 +98,10 @@ async function verify() {
   console.log(`draw coverage: ${gaps}`);
 }
 
+const sidoArg = (process.argv[3] || "").trim();
+const sidoList = sidoArg ? sidoArg.split(",").map((s) => s.trim()).filter(Boolean) : undefined;
+
 if (mode === "draws" || mode === "all") await backfillDraws();
 if (mode === "wins" || mode === "all") await backfillWins();
-if (mode === "master" || mode === "all") await syncMaster();
+if (mode === "master" || mode === "all") await syncMaster(sidoList);
 if (mode === "verify" || mode === "all") await verify();

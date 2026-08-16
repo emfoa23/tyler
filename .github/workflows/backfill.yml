@@ -9,6 +9,10 @@ on:
         description: "draws | wins | master | verify | all"
         required: false
         default: "all"
+      arg:
+        description: "master 모드용 시도 목록 (예: 서울,경기 — 비우면 전국)"
+        required: false
+        default: ""
 
 concurrency:
   group: backfill
@@ -27,7 +31,7 @@ jobs:
         with:
           node-version: 22
       - name: Run backfill
-        run: node scripts/backfill.mjs "${{ inputs.mode }}"
+        run: node scripts/backfill.mjs "${{ inputs.mode }}" "${{ inputs.arg }}"
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
