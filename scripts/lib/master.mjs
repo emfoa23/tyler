@@ -1,14 +1,21 @@
 // 전국 판매점 마스터 동기화. 전량 drop 이 아니라 upsert + 미출현 지점 closed 마킹으로
 // 폐업 지점의 배출 이력을 보존한다. (배출점으로만 알려진 지점은 master_seen_at 이 null 이라 건드리지 않는다.)
+//
+// sidos 부분집합 실행을 지원한다 — dhlottery 는 지속 크롤 수백 요청이면 IP 스로틀을 걸므로
+// (2026-08-16 실측), 백필은 시도 그룹으로 나눠 러너를 바꿔가며 돈다.
+// 미출현 closed 마킹은 "전체 시도를 한 번에 돈 실행"에서만 수행한다 (부분 실행에서 돌리면
+// 이번에 안 돈 시도 전체가 폐점 처리되는 참사가 난다).
 import { SIDO, fetchMasterPage, mapMasterStore } from "./dhlottery.mjs";
 import { chunks, sleep, uniqueBy } from "./util.mjs";
 import { patchCount, upsert } from "./supa.mjs";
 
-export async function syncMaster() {
+export async function syncMaster(sidos = SIDO) {
   const startIso = new Date().toISOString();
-  const all = [];
+  const fullRun = sidos.length === SIDO.length;
+  let grand = 0;
 
-  for (const sido of SIDO) {
+  for (const sido of sidos) {
+    if (!SIDO.includes(sido)) throw new Error(`unknown sido: ${sido}`);
     const first = await fetchMasterPage(sido, 1);
     const total = first.total ?? 0;
     const rows = [...(first.list ?? [])];
@@ -21,26 +28,30 @@ export async function syncMaster() {
       await sleep(250);
       if (p % 100 === 0) await sleep(5000);
     }
-    // 페이징 중 목록이 흔들려 일부가 비면 전체를 실패로 처리한다
+    // 페이징 중 목록이 흔들려 일부가 비면 해당 시도를 실패로 처리한다
     // (부분 수집 상태로 closed 마킹이 돌면 멀쩡한 지점이 폐점 처리되므로).
     if (rows.length < total * 0.98) {
       throw new Error(`master ${sido}: collected ${rows.length}/${total}`);
     }
-    console.log(`master ${sido}: ${rows.length}/${total}`);
-    all.push(...rows);
+    // 시도 단위로 즉시 upsert — 런이 중간에 죽어도 완료한 시도는 남는다.
+    const seenAt = new Date().toISOString();
+    const mapped = uniqueBy(rows.map((m) => mapMasterStore(m, seenAt)), "store_id");
+    for (const chunk of chunks(mapped, 500)) {
+      await upsert("stores", chunk, "store_id");
+    }
+    grand += mapped.length;
+    console.log(`master ${sido}: ${mapped.length}/${total} upserted`);
   }
 
-  const seenAt = new Date().toISOString();
-  const mapped = uniqueBy(all.map((m) => mapMasterStore(m, seenAt)), "store_id");
-  for (const chunk of chunks(mapped, 500)) {
-    await upsert("stores", chunk, "store_id");
+  if (fullRun) {
+    // 전 시도 수집이 성공했을 때만: 이전 마스터에는 있었는데 이번에 사라진 지점을 폐점 처리.
+    const closed = await patchCount(
+      `stores?master_seen_at=not.is.null&master_seen_at=lt.${encodeURIComponent(startIso)}&status=eq.open`,
+      { status: "closed", updated_at: new Date().toISOString() },
+    );
+    console.log(`master sync done: ${grand} stores upserted, ${closed ?? 0} marked closed`);
+  } else {
+    console.log(`master partial sync done (${sidos.join(",")}): ${grand} stores upserted — closed 마킹은 전체 실행에서만`);
   }
-
-  // 전 시도 수집이 성공했을 때만: 이전 마스터에는 있었는데 이번에 사라진 지점을 폐점 처리.
-  const closed = await patchCount(
-    `stores?master_seen_at=not.is.null&master_seen_at=lt.${encodeURIComponent(startIso)}&status=eq.open`,
-    { status: "closed", updated_at: seenAt },
-  );
-  console.log(`master sync done: ${mapped.length} stores upserted, ${closed ?? 0} marked closed`);
-  return { stores: mapped.length, closed: closed ?? 0 };
+  return { stores: grand };
 }
