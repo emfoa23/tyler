@@ -5,11 +5,30 @@ import { sleep } from "./util.mjs";
 
 const BASE = "https://www.dhlottery.co.kr";
 
-// selectLtShp.do 의 srchCtpvNm 은 짧은 시도명만 인식한다("서울특별시"는 total=0).
+// 표준 17개 시도 (배출점 데이터·UI 필터 기준 어휘).
 export const SIDO = [
   "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
   "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주",
 ];
+
+// 판매점 마스터(selectLtShp.do)의 질의 어휘. 짧은 시도명만 인식하며("서울특별시"는 total=0),
+// 광주·전남은 '전남광주' 통합 권역으로 관리된다 ('광주' 질의 0건, '전남' 질의 1건 — 2026-08-17 실측).
+// marks = 이 질의를 완주하면 폐점 마킹을 수행해도 되는 시도 목록 (질의가 그 시도 전체를 커버한다는 보장).
+export const MASTER_QUERIES = [
+  ...["서울", "부산", "대구", "인천", "대전", "울산", "세종",
+      "경기", "강원", "충북", "충남", "전북", "경북", "경남", "제주"].map((s) => ({ query: s, marks: [s] })),
+  { query: "전남광주", marks: ["광주", "전남"] },
+  // 개별 '전남' 태깅 잔재(순천 1건 실측) refresh 용 보조 질의 — 커버리지 보장이 없어 마킹 없음.
+  { query: "전남", marks: [] },
+];
+
+// 광주광역시의 5개 구 — '전남광주' 통합 표기를 개별 시도로 분리할 때 사용.
+const GWANGJU_GU = new Set(["동구", "서구", "남구", "북구", "광산구"]);
+
+export function normalizeSido(sido, sigungu) {
+  if (sido === "전남광주") return GWANGJU_GU.has(sigungu || "") ? "광주" : "전남";
+  return sido || null;
+}
 
 // 배출점 데이터가 존재하는 최초 회차 (이전 회차는 API total=0).
 export const FIRST_WIN_SHOP_DRAW = 262;
@@ -123,7 +142,7 @@ export function mapWinStore(w) {
     store_id: String(w.ltShpId),
     // 과거 회차 일부 지점은 상호가 null 로 온다 — 마스터 동기화가 만나면 실명으로 덮어쓴다.
     name: w.shpNm || "(상호 미상)",
-    sido: w.tm1ShpLctnAddr || w.region || null,
+    sido: normalizeSido(w.tm1ShpLctnAddr || w.region, w.tm2ShpLctnAddr),
     sigungu: w.tm2ShpLctnAddr || null,
     address: (w.shpAddr || "").trim() || null,
     phone: w.shpTelno || null,
@@ -150,7 +169,7 @@ export function mapMasterStore(m, seenAtIso) {
   return {
     store_id: String(m.ltShpId),
     name: m.conmNm || "(상호 미상)",
-    sido: m.tm1BplcLctnAddr || null,
+    sido: normalizeSido(m.tm1BplcLctnAddr, m.tm2BplcLctnAddr),
     sigungu: m.tm2BplcLctnAddr || null,
     address: m.bplcRdnmDaddr || m.bplcLctnDaddr || null,
     phone: m.shpTelno || null,
