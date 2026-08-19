@@ -132,20 +132,29 @@ export default async function StoreDetailPage({
             items={history.map((g) => (
               <li key={`${g.draw_no}-${g.rank}`}>
                 <Link href={`/history/${g.draw_no}`} className="block py-3 hover:bg-stone-50">
-                  <span className="flex items-center gap-x-3">
-                    <span className="text-sm font-semibold">제{g.draw_no}회</span>
-                    <span className="text-xs text-stone-500">{dateShort(g.draw_date)}</span>
-                    <span
-                      className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${
-                        g.rank === 1 ? "bg-amber-100 text-amber-700" : "bg-stone-100 text-stone-600"
-                      }`}
-                    >
-                      {g.rank}등
+                  {/* 좌: 회차+등수/날짜 스택 · 우: 인원/방식 스택 — 회차 상세 배출점 리스트와 같은 배치 */}
+                  <span className="flex items-center gap-2">
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-sm font-semibold">제{g.draw_no}회</span>
+                        <span
+                          className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${
+                            g.rank === 1 ? "bg-amber-100 text-amber-700" : "bg-stone-100 text-stone-600"
+                          }`}
+                        >
+                          {g.rank}등
+                        </span>
+                      </span>
+                      <span className="text-xs text-stone-500">{dateShort(g.draw_date)}</span>
                     </span>
-                    {g.total > 1 && <span className="text-sm font-semibold">{g.total}명</span>}
-                    {g.methods.size > 0 && (
-                      <span className="text-xs text-stone-500">{methodSummary(g.methods)}</span>
-                    )}
+                    <span className="max-w-[55%] shrink-0 text-right">
+                      {g.total > 1 && (
+                        <span className="block text-sm font-semibold">{g.total}명</span>
+                      )}
+                      {g.methods.size > 0 && (
+                        <span className="block text-xs text-stone-400">{methodSummary(g.methods)}</span>
+                      )}
+                    </span>
                   </span>
                   {g.draw && (
                     <span className="mt-1.5 block">
