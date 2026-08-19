@@ -23,7 +23,8 @@ export default function AboutPage() {
             <Link href="/generate" className="font-medium text-amber-600 hover:underline">
               번호 생성
             </Link>{" "}
-            — 서버에서 완전한 무작위로 번호를 생성합니다. 생성한 번호는 기기별로 보관되며,
+            — 서버에서 완전한 무작위로 번호를 생성합니다. 원하는 번호를 최대 5개까지 고정하고
+            나머지만 무작위로 채우는 반자동도 지원합니다. 생성한 번호는 기기별로 보관되며,
             추첨이 끝나면 실제 당첨번호와 자동으로 대조해 등수를 보여줍니다.
           </li>
           <li>

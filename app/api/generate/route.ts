@@ -10,12 +10,14 @@ const DAILY_LIMIT = 200;
 const MAX_BATCH = 5;
 
 // 서버에서 생성해야 통계가 정직해진다 (클라이언트 조작 번호가 기록되지 않도록).
-function generateSet(): number[] {
-  const pool = Array.from({ length: 45 }, (_, i) => i + 1);
-  const rand = new Uint32Array(6);
+// 반자동: 실제 로또처럼 최대 5개까지 고정을 허용하고, 나머지는 여전히 서버 무작위.
+function generateSet(fixed: number[] = []): number[] {
+  const pool = Array.from({ length: 45 }, (_, i) => i + 1).filter((n) => !fixed.includes(n));
+  const need = 6 - fixed.length;
+  const rand = new Uint32Array(need);
   crypto.getRandomValues(rand);
-  const picked: number[] = [];
-  for (let i = 0; i < 6; i++) {
+  const picked = [...fixed];
+  for (let i = 0; i < need; i++) {
     const idx = rand[i] % pool.length;
     picked.push(pool.splice(idx, 1)[0]);
   }
@@ -28,6 +30,15 @@ export async function POST(req: Request) {
   const count = Math.min(Math.max(1, Number(body.count) || 1), MAX_BATCH);
   if (!UUID_RE.test(clientId)) {
     return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
+  }
+
+  const fixed: number[] = (Array.isArray(body.fixed) ? body.fixed : []).map(Number);
+  const fixedValid =
+    fixed.length <= 5 &&
+    fixed.every((n) => Number.isInteger(n) && n >= 1 && n <= 45) &&
+    new Set(fixed).size === fixed.length;
+  if (!fixedValid) {
+    return NextResponse.json({ error: "고정 번호가 잘못되었습니다." }, { status: 400 });
   }
 
   const latest = await getLatestDraw();
@@ -54,7 +65,7 @@ export async function POST(req: Request) {
 
   const rows = Array.from({ length: count }, () => ({
     client_id: clientId,
-    numbers: generateSet(),
+    numbers: generateSet(fixed),
     target_draw: target,
   }));
   const { data, error } = await db
