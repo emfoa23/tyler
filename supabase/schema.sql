@@ -87,7 +87,10 @@ create or replace function store_ranking(
     -- 온라인 채널(51100000)은 특정 시도 소속이 아니므로 지역 필터에선 제외, 전국일 때만 포함
     and (p_sido is null or (s.sido = p_sido and s.store_id <> '51100000'))
   group by s.store_id
-  order by count(*) desc, s.store_id asc
+  -- 1등 우선, 동률은 2등 순 — rank 필터 모드에선 해당 등수 count 만 남아 자연히 그 등수 desc 가 된다
+  order by count(*) filter (where w.rank = 1) desc,
+           count(*) filter (where w.rank = 2) desc,
+           s.store_id asc
   limit p_limit offset p_offset
 $$;
 

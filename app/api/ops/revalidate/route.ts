@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   revalidatePath("/");
   revalidatePath("/history");
   revalidatePath("/stores");
+  revalidatePath("/numbers");
   revalidatePath("/history/[draw]", "page");
   revalidatePath("/stores/[id]", "page");
   return NextResponse.json({ ok: true, at: new Date().toISOString() });
