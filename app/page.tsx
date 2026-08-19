@@ -75,7 +75,10 @@ export default async function HomePage() {
 
       <section className="rounded-2xl border border-stone-200 bg-white p-6">
         <div className="flex items-baseline justify-between">
-          <h2 className="font-bold">명당 TOP 5</h2>
+          <div>
+            <h2 className="font-bold">명당 TOP 5</h2>
+            <p className="mt-0.5 text-xs text-stone-400">최근 1년 기준</p>
+          </div>
           <Link href="/stores" className="text-sm text-stone-500 hover:underline">
             전체 랭킹 →
           </Link>
@@ -106,12 +109,14 @@ export default async function HomePage() {
             </li>
           ))}
         </ol>
-        <p className="mt-3 text-xs text-stone-400">최근 1년 기준.</p>
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-6">
         <div className="flex items-baseline justify-between">
-          <h2 className="font-bold">자주 나온 번호 TOP 5</h2>
+          <div>
+            <h2 className="font-bold">자주 나온 번호 TOP 5</h2>
+            <p className="mt-0.5 text-xs text-stone-400">최근 1년 기준</p>
+          </div>
           <Link href="/numbers" className="text-sm text-stone-500 hover:underline">
             전체 보기 →
           </Link>
@@ -126,7 +131,6 @@ export default async function HomePage() {
             </span>
           ))}
         </div>
-        <p className="mt-3 text-xs text-stone-400">최근 1년 기준.</p>
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-6">
