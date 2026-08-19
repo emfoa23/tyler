@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BallRow } from "@/components/ball";
+import { JsonLd } from "@/components/json-ld";
 import { PagedList } from "@/components/paged-list";
 import { StoreBadges } from "@/components/store-badge";
 import { dateShort } from "@/lib/format";
@@ -21,7 +22,14 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const store = await getStore(id);
-  return { title: store ? `${storeDisplayName(store)} — 배출 이력` : "지점" };
+  if (!store) return { title: "지점" };
+  const where = isOnlineStore(store.store_id)
+    ? "동행복권 공식 온라인 판매 채널"
+    : [store.sido, store.sigungu].filter(Boolean).join(" ");
+  return {
+    title: `${storeDisplayName(store)} — 배출 이력`,
+    description: `${where ? `${where} ` : ""}${storeDisplayName(store)}의 로또 1·2등 배출 이력과 회차별 당첨 기록`,
+  };
 }
 
 export default async function StoreDetailPage({
@@ -43,6 +51,17 @@ export default async function StoreDetailPage({
 
   return (
     <div className="space-y-6">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "홈", item: "https://lottogen.click" },
+            { "@type": "ListItem", position: 2, name: "명당 랭킹", item: "https://lottogen.click/stores" },
+            { "@type": "ListItem", position: 3, name: storeDisplayName(store) },
+          ],
+        }}
+      />
       <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-bold">{storeDisplayName(store)}</h1>
