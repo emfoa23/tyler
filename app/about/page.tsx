@@ -40,6 +40,12 @@ export default function AboutPage() {
             — 1·2등을 배출한 판매점 랭킹을 지역·기간·등수별로 볼 수 있고, 지점마다 회차별
             배출 이력을 제공합니다.
           </li>
+          <li>
+            <Link href="/numbers" className="font-medium text-amber-600 hover:underline">
+              자주 나온 번호
+            </Link>{" "}
+            — 번호별 출현 횟수 랭킹을 기간별로, 보너스 번호 포함 여부를 골라 볼 수 있습니다.
+          </li>
         </ul>
       </section>
 

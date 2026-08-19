@@ -66,6 +66,28 @@ export async function getRanking(params: {
   return (data ?? []) as RankingRow[];
 }
 
+export type NumberFrequencyRow = {
+  num: number;
+  cnt: number;
+  last_draw: number | null;
+  last_date: string | null;
+};
+
+// 45행 고정이라 limit 은 클라이언트 slice 로 충분 (시그니처 최소 유지)
+export async function getNumberFrequency(params: {
+  months?: number | null;
+  bonus?: boolean;
+  limit?: number;
+}): Promise<NumberFrequencyRow[]> {
+  const { data, error } = await db.rpc("number_frequency", {
+    p_months: params.months ?? null,
+    p_bonus: params.bonus ?? false,
+  });
+  if (error) throw error;
+  const rows = (data ?? []) as NumberFrequencyRow[];
+  return params.limit ? rows.slice(0, params.limit) : rows;
+}
+
 export const getStore = cache(async (storeId: string): Promise<Store | null> => {
   const { data, error } = await db
     .from("stores").select("*").eq("store_id", storeId).maybeSingle();
