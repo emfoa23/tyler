@@ -106,7 +106,7 @@ export default async function HomePage() {
             </li>
           ))}
         </ol>
-        <p className="mt-3 text-xs text-stone-400">최근 1년 1·2등 배출 기준.</p>
+        <p className="mt-3 text-xs text-stone-400">최근 1년 기준.</p>
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-6">
@@ -126,9 +126,7 @@ export default async function HomePage() {
             </span>
           ))}
         </div>
-        <p className="mt-3 text-xs text-stone-400">
-          최근 1년 본번호 기준. 출현 빈도는 과거 기록일 뿐, 미래 확률과 무관합니다.
-        </p>
+        <p className="mt-3 text-xs text-stone-400">최근 1년 기준.</p>
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-6">

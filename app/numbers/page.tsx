@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Ball } from "@/components/ball";
 import { NumbersFilter } from "@/components/numbers-filter";
+import { PagedList } from "@/components/paged-list";
 import { dateShort } from "@/lib/format";
 import { getNumberFrequency } from "@/lib/queries";
 
@@ -32,8 +33,10 @@ export default async function NumbersPage({
 
       <NumbersFilter months={months ? String(months) : "all"} bonus={bonus ? "1" : "0"} />
 
-      <ol className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white px-4">
-        {rows.map((r, i) => (
+      <PagedList
+        pageSize={10}
+        className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white px-4"
+        items={rows.map((r, i) => (
           <li key={r.num} className="flex items-center gap-3 py-2.5">
             <span className="w-6 shrink-0 text-center text-sm font-bold text-stone-400">
               {i + 1}
@@ -55,11 +58,9 @@ export default async function NumbersPage({
             </span>
           </li>
         ))}
-      </ol>
+      />
 
       <p className="text-xs leading-relaxed text-stone-400">
-        {bonus ? "본번호 6개 + 보너스 번호" : "본번호 6개"} 기준
-        {months ? ` · 최근 ${months === 12 ? "1년" : months === 60 ? "5년" : "6개월"}` : " · 1회차부터 전체 기간"}.
         출현 빈도는 과거 기록일 뿐이며, 매 회차는 독립 추첨이라 미래의 당첨 확률과는 무관합니다.
       </p>
     </div>
