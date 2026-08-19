@@ -24,9 +24,9 @@ export default async function HomePage() {
     );
   }
 
-  // 홈의 두 TOP 5 는 같은 시간창(최근 1년)으로 통일 — 역대 누적은 각 페이지의 기본 필터에서
+  // 명당은 역대 전체(최근 1년은 수가 적어 비어 보임 — 2026-08-20 결정), 번호는 최근 1년
   const [top, freq, { rows: recentRows }] = await Promise.all([
-    getRanking({ months: 12, limit: 5 }),
+    getRanking({ limit: 5 }),
     getNumberFrequency({ months: 12, limit: 5 }),
     getDraws(1),
   ]);
@@ -75,10 +75,7 @@ export default async function HomePage() {
 
       <section className="rounded-2xl border border-stone-200 bg-white p-6">
         <div className="flex items-baseline justify-between">
-          <div>
-            <h2 className="font-bold">명당 TOP 5</h2>
-            <p className="mt-0.5 text-xs text-stone-400">최근 1년 기준</p>
-          </div>
+          <h2 className="font-bold">명당 TOP 5</h2>
           <Link href="/stores" className="text-sm text-stone-500 hover:underline">
             전체 랭킹 →
           </Link>
