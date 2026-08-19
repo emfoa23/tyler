@@ -63,9 +63,11 @@ alter table stores enable row level security;
 alter table store_wins enable row level security;
 alter table generated_sets enable row level security;
 
+-- 기간 필터는 월 단위(p_months: 6·12·60). 파라미터명 변경은 CREATE OR REPLACE 불가라
+-- 재배포 시 DROP 후 재생성 + GRANT 재적용이 필요하다 (2026-08-20 p_years→p_months 전환).
 create or replace function store_ranking(
   p_rank text default 'all',
-  p_years integer default null,
+  p_months integer default null,
   p_sido text default null,
   p_limit integer default 100,
   p_offset integer default 0
@@ -81,7 +83,7 @@ create or replace function store_ranking(
   from store_wins w
   join stores s on s.store_id = w.store_id
   where (p_rank = 'all' or w.rank = p_rank::smallint)
-    and (p_years is null or w.draw_date >= (current_date - make_interval(years => p_years)))
+    and (p_months is null or w.draw_date >= (current_date - make_interval(months => p_months)))
     -- 온라인 채널(51100000)은 특정 시도 소속이 아니므로 지역 필터에선 제외, 전국일 때만 포함
     and (p_sido is null or (s.sido = p_sido and s.store_id <> '51100000'))
   group by s.store_id

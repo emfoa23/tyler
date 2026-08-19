@@ -13,14 +13,14 @@ export const metadata: Metadata = {
   description: "로또 1·2등을 가장 많이 배출한 판매점 랭킹 — 지역·기간·등수별",
 };
 
-type Params = { rank?: string; years?: string; sido?: string; page?: string };
+type Params = { rank?: string; months?: string; years?: string; sido?: string; page?: string };
 
 function qs(p: Params, overrides: Partial<Params>): string {
   const merged: Record<string, string | undefined> = { ...p, ...overrides };
   const parts: string[] = [];
   for (const [k, v] of Object.entries(merged)) {
     if (!v) continue;
-    if ((k === "rank" || k === "years" || k === "sido") && v === "all") continue;
+    if ((k === "rank" || k === "months" || k === "sido") && v === "all") continue;
     if (k === "page" && v === "1") continue;
     parts.push(`${k}=${encodeURIComponent(v)}`);
   }
@@ -34,14 +34,23 @@ export default async function StoresPage({
 }) {
   const params = await searchParams;
   const rank = ["1", "2"].includes(params.rank ?? "") ? (params.rank as "1" | "2") : "all";
-  const years = ["1", "5"].includes(params.years ?? "") ? Number(params.years) : null;
+  // 구 URL 호환: years=1|5 는 months 로 환산해 받는다
+  const monthsParam =
+    params.months ?? (params.years === "1" ? "12" : params.years === "5" ? "60" : undefined);
+  const months = ["6", "12", "60"].includes(monthsParam ?? "") ? Number(monthsParam) : null;
   const sido = SIDO_LIST.includes(params.sido ?? "") ? params.sido! : null;
   const page = Math.max(1, Number(params.page) || 1);
   const offset = (page - 1) * RANKING_PER_PAGE;
+  // 페이지네이션 링크용 정규화 쿼리 (legacy years 를 months 로 흡수)
+  const query: Params = {
+    rank: rank === "all" ? undefined : rank,
+    months: months ? String(months) : undefined,
+    sido: sido ?? undefined,
+  };
 
   const rows = await getRanking({
     rank,
-    years,
+    months,
     sido,
     limit: RANKING_PER_PAGE + 1,
     offset,
@@ -53,7 +62,7 @@ export default async function StoresPage({
     <div className="space-y-4">
       <h1 className="text-xl font-bold">명당 랭킹</h1>
 
-      <StoresFilter rank={rank} years={years ? String(years) : "all"} sido={sido ?? "all"} />
+      <StoresFilter rank={rank} months={months ? String(months) : "all"} sido={sido ?? "all"} />
 
       <ol className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white px-4">
         {visible.map((s, i) => (
@@ -90,7 +99,7 @@ export default async function StoresPage({
       <nav className="flex items-center justify-between text-sm">
         {page > 1 ? (
           <Link
-            href={`/stores${qs(params, { page: String(page - 1) })}`}
+            href={`/stores${qs(query, { page: String(page - 1) })}`}
             className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 hover:bg-stone-50"
           >
             ← 이전
@@ -98,7 +107,7 @@ export default async function StoresPage({
         ) : <span />}
         {hasMore && (
           <Link
-            href={`/stores${qs(params, { page: String(page + 1) })}`}
+            href={`/stores${qs(query, { page: String(page + 1) })}`}
             className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 hover:bg-stone-50"
           >
             다음 →

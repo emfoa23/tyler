@@ -50,14 +50,14 @@ export async function getDrawWins(drawNo: number): Promise<DrawWin[]> {
 
 export async function getRanking(params: {
   rank?: "all" | "1" | "2";
-  years?: number | null;
+  months?: number | null;
   sido?: string | null;
   limit?: number;
   offset?: number;
 }): Promise<RankingRow[]> {
   const { data, error } = await db.rpc("store_ranking", {
     p_rank: params.rank ?? "all",
-    p_years: params.years ?? null,
+    p_months: params.months ?? null,
     p_sido: params.sido ?? null,
     p_limit: params.limit ?? RANKING_PER_PAGE,
     p_offset: params.offset ?? 0,
