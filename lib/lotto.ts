@@ -62,6 +62,11 @@ export function methodLabel(method: string | null): string | null {
   return method;
 }
 
+// 합산 행의 구매방식 병기: "자동 2 · 수동 1" (1명이면 수량 생략)
+export function methodSummary(methods: Map<string, number>): string {
+  return [...methods].map(([m, c]) => (c > 1 ? `${m} ${c}` : m)).join(" · ");
+}
+
 export function isOnlineStore(storeId: string): boolean {
   return storeId === ONLINE_STORE_ID;
 }

@@ -6,7 +6,7 @@ import { JsonLd } from "@/components/json-ld";
 import { PagedList } from "@/components/paged-list";
 import { StoreBadges } from "@/components/store-badge";
 import { dateK, won, wonShort } from "@/lib/format";
-import { drawNumbers, isOnlineStore, methodLabel, storeDisplayName } from "@/lib/lotto";
+import { drawNumbers, isOnlineStore, methodLabel, methodSummary, storeDisplayName } from "@/lib/lotto";
 import { getDraw, getDrawWins, getLatestDraw, type DrawWin } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -50,7 +50,7 @@ function WinList({ wins, rank }: { wins: DrawWin[]; rank: 1 | 2 }) {
   return (
     <div>
       <h3 className="mb-1 text-sm font-semibold text-stone-600">
-        {rank}등 배출점 <span className="font-normal text-stone-400">({rows.length}건)</span>
+        {rank}등 배출점 <span className="font-normal text-stone-400">({rows.length}명)</span>
       </h3>
       <PagedList
         pageSize={10}
@@ -74,11 +74,9 @@ function WinList({ wins, rank }: { wins: DrawWin[]; rank: 1 | 2 }) {
               </span>
               {s.total > 1 ? (
                 <span className="shrink-0 text-right">
-                  <span className="block text-sm font-semibold">{s.total}건</span>
+                  <span className="block text-sm font-semibold">{s.total}명</span>
                   {s.methods.size > 0 && (
-                    <span className="block text-xs text-stone-400">
-                      {[...s.methods].map(([m, c]) => (c > 1 ? `${m} ${c}` : m)).join(" · ")}
-                    </span>
+                    <span className="block text-xs text-stone-400">{methodSummary(s.methods)}</span>
                   )}
                 </span>
               ) : (
@@ -199,7 +197,7 @@ export default async function DrawDetailPage({
             <WinList wins={wins} rank={1} />
             <WinList wins={wins} rank={2} />
             <p className="text-xs text-stone-400">
-              같은 지점의 당첨은 한 줄로 합산했습니다. 2건 이상이면 건수를 표기합니다.
+              같은 지점의 당첨자는 한 줄로 합산했습니다. 2명 이상이면 인원을 표기합니다.
             </p>
           </>
         ) : (

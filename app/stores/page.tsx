@@ -75,7 +75,7 @@ export default async function StoresPage({
               </span>
               <span className="shrink-0 text-right">
                 <span className="block text-sm font-semibold">
-                  {rank === "all" ? `1등 ${s.r1} · 2등 ${s.r2}` : `${s.total}회`}
+                  {rank === "all" ? `1등 ${s.r1} · 2등 ${s.r2}` : `${s.total}명`}
                 </span>
                 <span className="block text-xs text-stone-400">최근 {dateShort(s.last_win)}</span>
               </span>
