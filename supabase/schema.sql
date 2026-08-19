@@ -82,7 +82,8 @@ create or replace function store_ranking(
   join stores s on s.store_id = w.store_id
   where (p_rank = 'all' or w.rank = p_rank::smallint)
     and (p_years is null or w.draw_date >= (current_date - make_interval(years => p_years)))
-    and (p_sido is null or s.sido = p_sido)
+    -- 온라인 채널(51100000)은 특정 시도 소속이 아니므로 지역 필터에선 제외, 전국일 때만 포함
+    and (p_sido is null or (s.sido = p_sido and s.store_id <> '51100000'))
   group by s.store_id
   order by count(*) desc, s.store_id asc
   limit p_limit offset p_offset

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { StoreBadges } from "@/components/store-badge";
+import { StoresFilter } from "@/components/stores-filter";
 import { dateShort } from "@/lib/format";
-import { SIDO_LIST, storeDisplayName } from "@/lib/lotto";
+import { SIDO_LIST, isOnlineStore, storeDisplayName } from "@/lib/lotto";
 import { RANKING_PER_PAGE, getRanking } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -11,17 +12,6 @@ export const metadata: Metadata = {
   title: "명당 랭킹",
   description: "로또 1·2등을 가장 많이 배출한 판매점 랭킹 — 지역·기간·등수별",
 };
-
-const RANK_OPTIONS = [
-  { value: "all", label: "1·2등 전체" },
-  { value: "1", label: "1등만" },
-  { value: "2", label: "2등만" },
-];
-const YEARS_OPTIONS = [
-  { value: "all", label: "전체 기간" },
-  { value: "1", label: "최근 1년" },
-  { value: "5", label: "최근 5년" },
-];
 
 type Params = { rank?: string; years?: string; sido?: string; page?: string };
 
@@ -63,27 +53,7 @@ export default async function StoresPage({
     <div className="space-y-4">
       <h1 className="text-xl font-bold">명당 랭킹</h1>
 
-      <form method="get" action="/stores" className="flex flex-wrap items-center gap-2 text-sm">
-        <select name="rank" defaultValue={rank} className="rounded-lg border border-stone-200 bg-white px-2 py-1.5">
-          {RANK_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <select name="years" defaultValue={years ? String(years) : "all"} className="rounded-lg border border-stone-200 bg-white px-2 py-1.5">
-          {YEARS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <select name="sido" defaultValue={sido ?? "all"} className="rounded-lg border border-stone-200 bg-white px-2 py-1.5">
-          <option value="all">전국</option>
-          {SIDO_LIST.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-        <button type="submit" className="rounded-lg bg-stone-800 px-3 py-1.5 font-medium text-white hover:bg-stone-700">
-          적용
-        </button>
-      </form>
+      <StoresFilter rank={rank} years={years ? String(years) : "all"} sido={sido ?? "all"} />
 
       <ol className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white px-4">
         {visible.map((s, i) => (
@@ -98,7 +68,9 @@ export default async function StoresPage({
                   <StoreBadges storeId={s.store_id} status={s.status} />
                 </span>
                 <span className="truncate text-xs text-stone-500">
-                  {[s.sido, s.sigungu].filter(Boolean).join(" ")}
+                  {isOnlineStore(s.store_id)
+                    ? "전국 온라인 구매 합산"
+                    : [s.sido, s.sigungu].filter(Boolean).join(" ")}
                 </span>
               </span>
               <span className="shrink-0 text-right">

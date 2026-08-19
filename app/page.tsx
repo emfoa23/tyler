@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BallRow } from "@/components/ball";
 import { StoreBadges } from "@/components/store-badge";
 import { dateK, dateShort, wonShort } from "@/lib/format";
-import { drawNumbers, storeDisplayName } from "@/lib/lotto";
+import { drawNumbers, isOnlineStore, storeDisplayName } from "@/lib/lotto";
 import { getDraws, getLatestDraw, getRanking } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -92,7 +92,9 @@ export default async function HomePage() {
                     <StoreBadges storeId={s.store_id} status={s.status} />
                   </span>
                   <span className="truncate text-xs text-stone-500">
-                    {[s.sido, s.sigungu].filter(Boolean).join(" ")}
+                    {isOnlineStore(s.store_id)
+                      ? "전국 온라인 구매 합산"
+                      : [s.sido, s.sigungu].filter(Boolean).join(" ")}
                   </span>
                 </span>
                 <span className="text-sm text-stone-600">
