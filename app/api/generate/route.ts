@@ -72,20 +72,27 @@ export async function POST(req: Request) {
   });
 }
 
+const PAGE_SIZE = 50;
+
 export async function GET(req: Request) {
-  const clientId = new URL(req.url).searchParams.get("clientId") ?? "";
+  const url = new URL(req.url);
+  const clientId = url.searchParams.get("clientId") ?? "";
+  const beforeId = Number(url.searchParams.get("beforeId")) || null;
   if (!UUID_RE.test(clientId)) {
     return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
   }
 
   const latest = await getLatestDraw();
 
-  const { data: sets, error } = await db
+  // id desc = 생성 시각 역순의 안정 전순서 (같은 배치의 created_at 동률에도 커서가 안 흔들린다)
+  let query = db
     .from("generated_sets")
-    .select("id, numbers, target_draw, matched_rank, checked_at, created_at")
+    .select("id, numbers, target_draw, matched_rank, checked_at, created_at", beforeId ? {} : { count: "exact" })
     .eq("client_id", clientId)
-    .order("created_at", { ascending: false })
-    .limit(50);
+    .order("id", { ascending: false })
+    .limit(PAGE_SIZE);
+  if (beforeId) query = query.lt("id", beforeId);
+  const { data: sets, count: total, error } = await query;
   if (error) {
     return NextResponse.json({ error: "조회에 실패했습니다." }, { status: 500 });
   }
@@ -98,12 +105,14 @@ export async function GET(req: Request) {
         .in("draw_no", targets)
     : { data: [] };
 
-  const { data: stats } = await db.rpc("generation_stats").single();
+  // 페이지 이어받기(beforeId) 응답에는 통계 생략 — 첫 로드 값을 클라이언트가 유지한다
+  const { data: stats } = beforeId ? { data: null } : await db.rpc("generation_stats").single();
 
   const nextTarget = latest ? targetDrawFor(new Date(), latest) : null;
   return NextResponse.json({
     sets: sets ?? [],
     draws: Object.fromEntries((draws ?? []).map((d) => [d.draw_no, d])),
+    total: total ?? null,
     stats: stats ?? null,
     nextTarget,
     nextTargetDate: latest && nextTarget ? drawDateFor(latest, nextTarget) : null,
