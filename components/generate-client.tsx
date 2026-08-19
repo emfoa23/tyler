@@ -120,7 +120,8 @@ export function GenerateClient() {
         setError(body.error ?? "생성에 실패했습니다.");
         return;
       }
-      setFresh(body.sets);
+      // 최신이 위로 쌓이는 롤링 스택 — 최근 5세트만 유지 (5세트 뽑기는 전부 교체)
+      setFresh((prev) => [...body.sets, ...prev].slice(0, 5));
       // 전체 재로드 — 새 세트가 맨 위로 오고 페이징은 첫 페이지로 리셋된다
       await load(clientId);
     } catch {
