@@ -51,7 +51,8 @@ export function SiteNav() {
         </svg>
       </button>
 
-      {/* 헤더의 backdrop-blur 가 fixed 의 containing block 을 헤더로 만들므로 body 로 portal */}
+      {/* 헤더의 backdrop-blur 가 fixed 의 containing block 을 헤더로 만들므로 body 로 portal.
+          전체 드로어 대신 버튼 아래 말풍선 크기의 팝오버만 띄운다. */}
       {open &&
         createPortal(
         <div className="fixed inset-0 z-50 sm:hidden">
@@ -59,41 +60,24 @@ export function SiteNav() {
             type="button"
             aria-label="메뉴 닫기"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-black/20"
+            className="absolute inset-0"
           />
-          <div className="absolute right-0 top-0 flex h-full w-60 flex-col bg-white shadow-xl">
-            <div className="flex h-14 items-center justify-between border-b border-stone-200 px-4">
-              <span className="font-extrabold tracking-tight">
-                <span className="text-amber-500">●</span> lottogen
-              </span>
-              <button
-                type="button"
-                aria-label="메뉴 닫기"
+          <nav className="absolute right-3 top-14 flex w-40 flex-col rounded-xl border border-stone-200 bg-white p-1.5 text-sm font-medium shadow-lg">
+            {[...NAV, ...DRAWER_EXTRA].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
                 onClick={() => setOpen(false)}
-                className="rounded-lg p-2 text-stone-500 hover:bg-stone-100"
+                className={`rounded-lg px-3 py-2 hover:bg-stone-100 ${
+                  isActive(pathname, item.href)
+                    ? "bg-stone-50 font-bold text-stone-900"
+                    : "text-stone-600"
+                }`}
               >
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-                  <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-              </button>
-            </div>
-            <nav className="flex flex-col p-2 text-sm font-medium">
-              {[...NAV, ...DRAWER_EXTRA].map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className={`rounded-lg px-3 py-2.5 hover:bg-stone-100 ${
-                    isActive(pathname, item.href)
-                      ? "bg-stone-50 font-bold text-stone-900"
-                      : "text-stone-600"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
         </div>,
         document.body,
       )}
