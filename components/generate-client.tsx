@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { BallRow } from "@/components/ball";
 import { dateShort } from "@/lib/format";
-import { RANK_LABEL, matchedNumbers } from "@/lib/lotto";
+import { RANK_LABEL, ballColor, matchedNumbers } from "@/lib/lotto";
 import type { DrawNumbers, GeneratedSet, GenerationStats } from "@/lib/types";
 
 type ApiData = {
@@ -77,6 +77,15 @@ export function GenerateClient() {
   const [fresh, setFresh] = useState<GeneratedSet[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fixed, setFixed] = useState<number[]>([]);
+  const [showFixed, setShowFixed] = useState(false);
+
+  // 반자동: 실제 로또처럼 최대 5개까지 고정, 나머지는 서버 무작위
+  function toggleFixed(n: number) {
+    setFixed((prev) =>
+      prev.includes(n) ? prev.filter((v) => v !== n) : prev.length < 5 ? [...prev, n] : prev,
+    );
+  }
 
   const load = useCallback(async (cid: string) => {
     const res = await fetch(`/api/generate?clientId=${cid}`, { cache: "no-store" });
@@ -104,7 +113,7 @@ export function GenerateClient() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ clientId, count }),
+        body: JSON.stringify({ clientId, count, ...(fixed.length ? { fixed } : {}) }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -161,7 +170,58 @@ export function GenerateClient() {
             </p>
           )
         )}
-        <div className="mt-5 flex justify-center gap-2">
+        <div className="mt-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5">
+            <button
+              type="button"
+              onClick={() => setShowFixed(!showFixed)}
+              className="text-sm font-medium text-stone-500 hover:text-stone-700"
+            >
+              번호 고정 (반자동) {showFixed ? "▴" : "▾"}
+            </button>
+            {fixed.length > 0 && !showFixed && (
+              <BallRow numbers={[...fixed].sort((a, b) => a - b)} size="sm" />
+            )}
+            {fixed.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setFixed([])}
+                className="text-xs text-stone-400 hover:underline"
+              >
+                지우기
+              </button>
+            )}
+          </div>
+          {showFixed && (
+            <>
+              <div className="mx-auto mt-3 grid w-fit grid-cols-9 gap-1">
+                {Array.from({ length: 45 }, (_, i) => i + 1).map((n) => {
+                  const on = fixed.includes(n);
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => toggleFixed(n)}
+                      disabled={!on && fixed.length >= 5}
+                      className={`flex size-8 items-center justify-center rounded-full text-xs font-bold transition ${
+                        on
+                          ? "text-white"
+                          : "border border-stone-200 bg-white text-stone-500 hover:bg-stone-50 disabled:opacity-30"
+                      }`}
+                      style={on ? { backgroundColor: ballColor(n), textShadow: "0 1px 1px rgba(0,0,0,.3)" } : undefined}
+                    >
+                      {n}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-stone-400">
+                최대 5개 고정 — 고정한 번호를 포함해 나머지를 무작위로 채웁니다.
+              </p>
+            </>
+          )}
+        </div>
+        <div className="mt-4 flex justify-center gap-2">
           <button
             onClick={() => generate(1)}
             disabled={busy || !clientId}
