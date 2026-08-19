@@ -3,6 +3,9 @@ import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
 import "./globals.css";
 
+// Google AdSense 게시자 ID — 공개값(페이지 소스·ads.txt 에 노출되는 값). public/ads.txt 와 쌍.
+const ADSENSE_CLIENT = "ca-pub-4095847360915092";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://lottogen.click"),
   title: {
@@ -34,6 +37,7 @@ export const metadata: Metadata = {
     "geo.region": "KR",
     "geo.placename": "대한민국",
     "content-language": "ko",
+    "google-adsense-account": ADSENSE_CLIENT,
   },
 };
 
@@ -95,6 +99,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </footer>
         <JsonLd data={JSON_LD} />
+        {/* SSR HTML 에 포함시켜 애드센스 소유확인 크롤러가 JS 실행 없이도 보게 한다 */}
+        <script
+          async
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
+          crossOrigin="anonymous"
+        />
       </body>
     </html>
   );
