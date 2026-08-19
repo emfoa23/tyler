@@ -28,6 +28,23 @@ for (;;) {
   await sleep(150);
 }
 
+// 1.5) 최신 회차 결과 재보정 — 1등 구매유형(winType)은 추첨 후 ~21:02 에야 공개된다
+// (2026-08-15 회차 미러 실측: 번호 20:43 → 당첨금·인원·판매액 20:50 → 구매유형 21:02).
+// 이른 슬롯이 null 로 저장한 채 신규 루프가 다시 안 긁으므로 여기서 채운다.
+const head = (await select(
+  "draws?select=draw_no,first_auto,sales_total&order=draw_no.desc&limit=1",
+))[0];
+if (head && (head.first_auto === null || head.sales_total === null)) {
+  const win = await fetchDrawWindow(head.draw_no);
+  const item = win.find((x) => x.ltEpsd === head.draw_no);
+  if (item && (item.winType1 != null || item.wholEpsdSumNtslAmt != null)) {
+    await upsert("draws", [mapDraw(item)], "draw_no");
+    console.log(`draw ${head.draw_no}: late fields refreshed`);
+    changed = true;
+  }
+  await sleep(150);
+}
+
 // 2) 최근 회차의 배출점 보정 (결과보다 늦게 공개되는 경우를 재시도 슬롯에서 흡수)
 const recent = await select("draws?select=draw_no,draw_date&order=draw_no.desc&limit=3");
 for (const d of recent.reverse()) {
