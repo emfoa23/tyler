@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/json-ld";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
     type: "website",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "lottogen — 로또 번호 생성기",
     description: "로또 번호 생성 · 회차별 당첨 결과 · 명당 랭킹",
   },
@@ -34,6 +35,10 @@ export const metadata: Metadata = {
     "geo.placename": "대한민국",
     "content-language": "ko",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#fafaf9",
 };
 
 const JSON_LD = {
@@ -77,7 +82,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">{children}</main>
         <footer className="border-t border-stone-200 bg-white">
-          <div className="mx-auto w-full max-w-3xl space-y-1 px-4 py-6 text-xs leading-relaxed text-stone-400">
+          <div className="mx-auto w-full max-w-3xl space-y-2 px-4 py-6 text-xs leading-relaxed text-stone-400">
+            <nav className="flex gap-4 font-medium text-stone-500">
+              <Link href="/about" className="hover:underline">서비스 소개</Link>
+              <Link href="/privacy" className="hover:underline">개인정보처리방침</Link>
+            </nav>
             <p>
               당첨 결과·배출점 데이터의 출처는 동행복권 공개 데이터이며, 조회 시점에 따라 실제와
               차이가 있을 수 있습니다.
@@ -85,10 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <p>번호 생성은 완전한 무작위이며 당첨을 보장하지 않습니다. 복권 구매는 책임질 수 있는 범위에서.</p>
           </div>
         </footer>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
-        />
+        <JsonLd data={JSON_LD} />
       </body>
     </html>
   );

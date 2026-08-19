@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { BallRow } from "@/components/ball";
 import { StoreBadges } from "@/components/store-badge";
@@ -6,6 +7,11 @@ import { drawNumbers, storeDisplayName } from "@/lib/lotto";
 import { getDraws, getLatestDraw, getRanking } from "@/lib/queries";
 
 export const revalidate = 3600;
+
+// 레이아웃의 상대 canonical("./") 이 홈에서만 "/index" 로 풀리는 Next 동작이 있어 명시로 고정
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default async function HomePage() {
   const latest = await getLatestDraw();

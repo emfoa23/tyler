@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BallRow } from "@/components/ball";
+import { JsonLd } from "@/components/json-ld";
 import { PagedList } from "@/components/paged-list";
 import { StoreBadges } from "@/components/store-badge";
 import { dateK, won, wonShort } from "@/lib/format";
@@ -92,6 +93,17 @@ export default async function DrawDetailPage({
 
   return (
     <div className="space-y-6">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "홈", item: "https://lottogen.click" },
+            { "@type": "ListItem", position: 2, name: "당첨 결과", item: "https://lottogen.click/history" },
+            { "@type": "ListItem", position: 3, name: `제${draw.draw_no}회` },
+          ],
+        }}
+      />
       <nav className="flex items-center justify-between text-sm">
         <Link
           href={`/history/${drawNo - 1}`}

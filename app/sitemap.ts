@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { drawDateFor } from "@/lib/lotto";
 import { getLatestDraw } from "@/lib/queries";
 
 export const revalidate = 86400;
@@ -10,10 +11,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const latest = await getLatestDraw();
 
   const core: MetadataRoute.Sitemap = [
-    { url: base, changeFrequency: "weekly", priority: 1 },
+    { url: base, changeFrequency: "weekly", priority: 1, lastModified: latest?.draw_date },
     { url: `${base}/generate`, changeFrequency: "monthly", priority: 0.9 },
-    { url: `${base}/history`, changeFrequency: "weekly", priority: 0.8 },
-    { url: `${base}/stores`, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${base}/history`, changeFrequency: "weekly", priority: 0.8, lastModified: latest?.draw_date },
+    { url: `${base}/stores`, changeFrequency: "weekly", priority: 0.8, lastModified: latest?.draw_date },
+    { url: `${base}/about`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   const draws: MetadataRoute.Sitemap = latest
@@ -21,6 +24,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         url: `${base}/history/${i + 1}`,
         changeFrequency: "yearly" as const,
         priority: 0.4,
+        // 과거 회차 내용은 추첨일 이후 사실상 불변 — 추첨일을 lastmod 로 써서 재크롤을 줄인다
+        lastModified: drawDateFor(latest, i + 1),
       }))
     : [];
 
