@@ -32,6 +32,21 @@ const RANKS = [1, 2, 3, 4, 5] as const;
 function WinList({ wins, rank }: { wins: DrawWin[]; rank: 1 | 2 }) {
   const rows = wins.filter((w) => w.rank === rank);
   if (!rows.length) return null;
+
+  // 지점당 한 줄로 합산 — 당첨 게임 수 desc (동률은 조회 순서 store_id asc, sort 안정성으로 유지)
+  const byStore = new Map<
+    string,
+    { store: DrawWin["store"]; total: number; methods: Map<string, number> }
+  >();
+  for (const w of rows) {
+    const entry = byStore.get(w.store.store_id) ?? { store: w.store, total: 0, methods: new Map() };
+    entry.total += 1;
+    const label = methodLabel(w.method);
+    if (label) entry.methods.set(label, (entry.methods.get(label) ?? 0) + 1);
+    byStore.set(w.store.store_id, entry);
+  }
+  const stores = [...byStore.values()].sort((a, b) => b.total - a.total);
+
   return (
     <div>
       <h3 className="mb-1 text-sm font-semibold text-stone-600">
@@ -40,27 +55,38 @@ function WinList({ wins, rank }: { wins: DrawWin[]; rank: 1 | 2 }) {
       <PagedList
         pageSize={10}
         className="divide-y divide-stone-100 rounded-xl border border-stone-200 bg-white"
-        items={rows.map((w, i) => (
-          <li key={`${w.store.store_id}-${i}`}>
+        items={stores.map((s) => (
+          <li key={s.store.store_id}>
             <Link
-              href={`/stores/${w.store.store_id}`}
+              href={`/stores/${s.store.store_id}`}
               className="flex items-center gap-2 px-3 py-2.5 hover:bg-stone-50"
             >
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="flex items-center gap-1.5">
-                  <span className="truncate text-sm font-medium">{storeDisplayName(w.store)}</span>
-                  <StoreBadges storeId={w.store.store_id} status={w.store.status} />
+                  <span className="truncate text-sm font-medium">{storeDisplayName(s.store)}</span>
+                  <StoreBadges storeId={s.store.store_id} status={s.store.status} />
                 </span>
                 <span className="truncate text-xs text-stone-500">
-                  {isOnlineStore(w.store.store_id)
+                  {isOnlineStore(s.store.store_id)
                     ? "전국 온라인 구매 합산"
-                    : [w.store.sido, w.store.sigungu].filter(Boolean).join(" ")}
+                    : [s.store.sido, s.store.sigungu].filter(Boolean).join(" ")}
                 </span>
               </span>
-              {methodLabel(w.method) && (
-                <span className="shrink-0 rounded-md bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">
-                  {methodLabel(w.method)}
+              {s.total > 1 ? (
+                <span className="shrink-0 text-right">
+                  <span className="block text-sm font-semibold">{s.total}건</span>
+                  {s.methods.size > 0 && (
+                    <span className="block text-xs text-stone-400">
+                      {[...s.methods].map(([m, c]) => (c > 1 ? `${m} ${c}` : m)).join(" · ")}
+                    </span>
+                  )}
                 </span>
+              ) : (
+                s.methods.size > 0 && (
+                  <span className="shrink-0 rounded-md bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">
+                    {[...s.methods.keys()][0]}
+                  </span>
+                )
               )}
             </Link>
           </li>
@@ -173,7 +199,7 @@ export default async function DrawDetailPage({
             <WinList wins={wins} rank={1} />
             <WinList wins={wins} rank={2} />
             <p className="text-xs text-stone-400">
-              행 하나가 당첨 게임 1건입니다 (같은 지점이 자동·수동으로 여러 번 나올 수 있음).
+              같은 지점의 당첨은 한 줄로 합산했습니다. 2건 이상이면 건수를 표기합니다.
             </p>
           </>
         ) : (
