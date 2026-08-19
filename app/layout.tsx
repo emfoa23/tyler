@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
+import { SiteNav } from "@/components/site-nav";
 import "./globals.css";
 
 // Google AdSense 게시자 ID — 공개값(페이지 소스·ads.txt 에 노출되는 값). public/ads.txt 와 쌍.
@@ -56,12 +57,6 @@ const JSON_LD = {
     "로또 6/45 번호 생성, 회차별 당첨 결과, 1·2등 배출 명당 랭킹을 제공하는 서비스",
 };
 
-const NAV = [
-  { href: "/generate", label: "번호 생성" },
-  { href: "/history", label: "당첨 결과" },
-  { href: "/stores", label: "명당 랭킹" },
-];
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
@@ -71,17 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="text-lg font-extrabold tracking-tight">
               <span className="text-amber-500">●</span> lottogen
             </Link>
-            <nav className="flex items-center gap-1 text-sm font-medium">
-              {NAV.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="rounded-lg px-2.5 py-1.5 text-stone-600 hover:bg-stone-100 hover:text-stone-900"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+            <SiteNav />
           </div>
         </header>
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">{children}</main>

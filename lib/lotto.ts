@@ -76,6 +76,14 @@ export function storeDisplayName(store: Pick<Store, "store_id" | "name">): strin
   return isOnlineStore(store.store_id) ? "동행복권 사이트" : store.name;
 }
 
+// 기간 필터 공통 옵션 (명당 랭킹·번호 통계) — URL/RPC 는 월 단위
+export const MONTHS_OPTIONS = [
+  { value: "all", label: "전체 기간" },
+  { value: "6", label: "최근 6개월" },
+  { value: "12", label: "최근 1년" },
+  { value: "60", label: "최근 5년" },
+];
+
 export const SIDO_LIST = [
   "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
   "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주",

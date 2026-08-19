@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BallRow } from "@/components/ball";
+import { Ball, BallRow } from "@/components/ball";
 import { StoreBadges } from "@/components/store-badge";
 import { dateK, dateShort, wonShort } from "@/lib/format";
 import { drawNumbers, isOnlineStore, storeDisplayName } from "@/lib/lotto";
-import { getDraws, getLatestDraw, getRanking } from "@/lib/queries";
+import { getDraws, getLatestDraw, getNumberFrequency, getRanking } from "@/lib/queries";
 
 export const revalidate = 3600;
 
@@ -24,8 +24,10 @@ export default async function HomePage() {
     );
   }
 
-  const [top, { rows: recentRows }] = await Promise.all([
-    getRanking({ limit: 5 }),
+  // 홈의 두 TOP 5 는 같은 시간창(최근 1년)으로 통일 — 역대 누적은 각 페이지의 기본 필터에서
+  const [top, freq, { rows: recentRows }] = await Promise.all([
+    getRanking({ months: 12, limit: 5 }),
+    getNumberFrequency({ months: 12, limit: 5 }),
     getDraws(1),
   ]);
   const recent = recentRows.filter((d) => d.draw_no !== latest.draw_no).slice(0, 5);
@@ -104,8 +106,28 @@ export default async function HomePage() {
             </li>
           ))}
         </ol>
+        <p className="mt-3 text-xs text-stone-400">최근 1년 1·2등 배출 기준.</p>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-6">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-bold">자주 나온 번호 TOP 5</h2>
+          <Link href="/numbers" className="text-sm text-stone-500 hover:underline">
+            전체 보기 →
+          </Link>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {freq.map((r) => (
+            <span key={r.num} className="flex items-center gap-1.5">
+              <Ball n={r.num} size="md" />
+              <span className="text-sm text-stone-600">
+                <b>{r.cnt}</b>회
+              </span>
+            </span>
+          ))}
+        </div>
         <p className="mt-3 text-xs text-stone-400">
-          1·2등 배출 이력 누적 기준 (배출점 데이터가 제공되는 262회차 이후).
+          최근 1년 본번호 기준. 출현 빈도는 과거 기록일 뿐, 미래 확률과 무관합니다.
         </p>
       </section>
 

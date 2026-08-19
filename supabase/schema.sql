@@ -139,3 +139,33 @@ revoke execute on function check_generated_sets(integer) from public, anon, auth
 grant execute on function store_ranking(text, integer, text, integer, integer) to service_role;
 grant execute on function generation_stats() to service_role;
 grant execute on function check_generated_sets(integer) to service_role;
+
+-- 번호별 출현 통계. p_bonus 는 시그니처 변경 마이그레이션을 피하려고 처음부터 포함(2026-08-20).
+create or replace function number_frequency(
+  p_months integer default null,
+  p_bonus boolean default false
+) returns table (num smallint, cnt bigint, last_draw integer, last_date date)
+language sql stable as $$
+  with pool as (
+    select d.draw_no, d.draw_date, x.num
+    from draws d
+    cross join lateral unnest(
+      case when p_bonus
+        then array[d.n1, d.n2, d.n3, d.n4, d.n5, d.n6, d.bonus]
+        else array[d.n1, d.n2, d.n3, d.n4, d.n5, d.n6]
+      end
+    ) as x(num)
+    where p_months is null or d.draw_date >= (current_date - make_interval(months => p_months))
+  )
+  select n.num::smallint,
+         count(p.num) as cnt,
+         max(p.draw_no) as last_draw,
+         max(p.draw_date) as last_date
+  from generate_series(1, 45) as n(num)
+  left join pool p on p.num = n.num
+  group by n.num
+  order by count(p.num) desc, n.num asc
+$$;
+
+revoke execute on function number_frequency(integer, boolean) from public, anon, authenticated;
+grant execute on function number_frequency(integer, boolean) to service_role;
