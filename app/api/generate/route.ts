@@ -72,7 +72,7 @@ export async function POST(req: Request) {
   });
 }
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
