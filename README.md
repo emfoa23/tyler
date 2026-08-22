@@ -56,8 +56,8 @@ node scripts/sync-draw.mjs         # 주간 동기화 (Actions 가 실행하는 
 node scripts/sync-stores.mjs       # 마스터 동기화
 ```
 
-배포는 Vercel CLI 수동 배포(`npx vercel --prod`). GitHub 연동 자동 배포는 쓰지 않는다
-(계정 단위 토큰을 레포에 넣지 않기 위해 — 원하면 Vercel GitHub App 설치로 전환 가능).
+배포는 **Vercel GitHub 연동**(2026-08-23 연결, production branch `main`) — PR 머지(= main push)마다 자동 프로덕션 배포,
+PR 브랜치는 preview 배포. 수동이 필요하면 `vercel deploy --prod`(배포 권한이 있는 Vercel 계정으로 로그인 또는 `--token`).
 
 ## GitHub Secrets
 
