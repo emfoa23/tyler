@@ -119,6 +119,12 @@ export function fetchMasterPage(sido, pageNum) {
 const ymd = (s) => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
 
 export function mapDraw(it) {
+  // 1등 구매유형(winType1/2/3)은 "없음"을 null 이 아니라 0 으로 표현한다 — 추첨 직후 공개 전
+  // (~21:02 까지)과 원천에 데이터가 없는 261회차 이전이 전부 0/0/0 (2026-08-22 실측).
+  // 합계 0 은 미공개·미상이지 실제 0 이 아니므로 null 로 저장한다
+  // (sync-draw 의 재보정 가드와 UI 가 null 을 기준으로 동작).
+  const types = [it.winType1, it.winType2, it.winType3].map((v) => v ?? 0);
+  const hasTypes = types.some((v) => v > 0);
   return {
     draw_no: it.ltEpsd,
     draw_date: ymd(String(it.ltRflYmd)),
@@ -130,7 +136,9 @@ export function mapDraw(it) {
     r3_winners: it.rnk3WnNope, r3_prize_each: it.rnk3WnAmt, r3_prize_total: it.rnk3SumWnAmt,
     r4_winners: it.rnk4WnNope, r4_prize_each: it.rnk4WnAmt, r4_prize_total: it.rnk4SumWnAmt,
     r5_winners: it.rnk5WnNope, r5_prize_each: it.rnk5WnAmt, r5_prize_total: it.rnk5SumWnAmt,
-    first_auto: it.winType1, first_manual: it.winType2, first_semi: it.winType3,
+    first_auto: hasTypes ? types[0] : null,
+    first_manual: hasTypes ? types[1] : null,
+    first_semi: hasTypes ? types[2] : null,
     sales_total: it.wholEpsdSumNtslAmt,
     prize_pool: it.rlvtEpsdSumNtslAmt,
   };

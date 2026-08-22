@@ -1,9 +1,10 @@
 // 주간 동기화: 신규 회차 당첨결과 → 배출점 → 생성번호 대조 → ISR revalidate.
-// 멱등: 새 데이터가 없으면 아무것도 바꾸지 않고 성공 종료한다 (토 21:00/21:30/23:00 + 일 10:00 재시도 전제).
+// 멱등: 새 데이터가 없으면 아무것도 바꾸지 않고 성공 종료한다
+// (토 20:50/21:05/21:30/23:05/23:30 + 일 10:00 KST 재시도 전제).
 import {
   fetchDrawWindow, fetchWins, mapDraw, mapWinRow, mapWinStore,
 } from "./lib/dhlottery.mjs";
-import { countRows, del, insert, rpc, select, upsert } from "./lib/supa.mjs";
+import { countRows, del, insert, patchCount, rpc, select, upsert } from "./lib/supa.mjs";
 import { sleep, uniqueBy } from "./lib/util.mjs";
 
 const latestRows = await select("draws?select=draw_no,draw_date&order=draw_no.desc&limit=1");
@@ -14,6 +15,17 @@ if (!latestRows.length) {
 
 let cursor = latestRows[0].draw_no;
 let changed = false;
+
+// 0) 불변식: 1등 구매유형 합계 0 은 미공개·미상이라 null 이어야 한다 (mapDraw 규칙).
+//    옛 적재분(261회차 이전·이른 슬롯이 0 으로 저장한 최신 회차)을 보정하고, 이후엔 0건이라 no-op.
+const normalized = await patchCount(
+  "draws?first_auto=eq.0&first_manual=eq.0&first_semi=eq.0",
+  { first_auto: null, first_manual: null, first_semi: null },
+);
+if (normalized) {
+  console.log(`draws: ${normalized} rows with zero purchase types normalized to null`);
+  changed = true;
+}
 
 // 1) 신규 회차 당첨결과 (여러 주 밀렸어도 따라잡는다)
 for (;;) {
@@ -28,19 +40,29 @@ for (;;) {
   await sleep(150);
 }
 
-// 1.5) 최신 회차 결과 재보정 — 1등 구매유형(winType)은 추첨 후 ~21:02 에야 공개된다
-// (2026-08-15 회차 미러 실측: 번호 20:43 → 당첨금·인원·판매액 20:50 → 구매유형 21:02).
-// 이른 슬롯이 null 로 저장한 채 신규 루프가 다시 안 긁으므로 여기서 채운다.
+// 1.5) 최신 회차 지연 필드 재보정 — 1등 구매유형(winType)은 추첨 후 ~21:02 에야 공개되고
+// (2026-08-15 회차 미러 실측: 번호 20:43 → 당첨금·인원·판매액 20:50 → 구매유형 21:02),
+// 공개 전엔 null 이 아니라 0/0/0 으로 온다 (2026-08-22 실측 — mapDraw 가 null 로 정규화).
+// 신규 루프는 넣은 회차를 다시 안 긁으므로, 최신 회차의 구매유형(1등 당첨자가 있는데 null)·
+// 판매액이 비어 있으면 재조회하고 실제로 채워질 때만 upsert 한다.
 const head = (await select(
-  "draws?select=draw_no,first_auto,sales_total&order=draw_no.desc&limit=1",
+  "draws?select=draw_no,r1_winners,first_auto,sales_total&order=draw_no.desc&limit=1",
 ))[0];
-if (head && (head.first_auto === null || head.sales_total === null)) {
+const needsTypes = !!head && head.first_auto === null && (head.r1_winners ?? 0) > 0;
+const needsSales = !!head && head.sales_total === null;
+if (needsTypes || needsSales) {
   const win = await fetchDrawWindow(head.draw_no);
   const item = win.find((x) => x.ltEpsd === head.draw_no);
-  if (item && (item.winType1 != null || item.wholEpsdSumNtslAmt != null)) {
-    await upsert("draws", [mapDraw(item)], "draw_no");
+  const row = item ? mapDraw(item) : null;
+  const fills = !!row && (
+    (needsTypes && row.first_auto !== null) || (needsSales && row.sales_total !== null)
+  );
+  if (fills) {
+    await upsert("draws", [row], "draw_no");
     console.log(`draw ${head.draw_no}: late fields refreshed`);
     changed = true;
+  } else {
+    console.log(`draw ${head.draw_no}: late fields not published yet`);
   }
   await sleep(150);
 }
