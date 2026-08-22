@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "서비스 소개",
   description:
-    "lottogen 은 로또 6/45 번호 생성, 1회차부터의 회차별 당첨 결과, 1·2등 배출 명당 순위을 제공하는 무료 서비스입니다.",
+    "lottogen 은 로또 6/45 번호 생성, 1회차부터의 회차별 당첨 결과, 1·2등 배출 명당 순위를 제공하는 무료 서비스입니다.",
 };
 
 export default function AboutPage() {
@@ -44,7 +44,7 @@ export default function AboutPage() {
             <Link href="/numbers" className="font-medium text-amber-600 hover:underline">
               자주 나오는 번호
             </Link>{" "}
-            — 번호별 출현 횟수 순위을 기간별로, 보너스 번호 포함 여부를 골라 볼 수 있습니다.
+            — 번호별 출현 횟수 순위를 기간별로, 보너스 번호 포함 여부를 골라 볼 수 있습니다.
           </li>
         </ul>
       </section>
