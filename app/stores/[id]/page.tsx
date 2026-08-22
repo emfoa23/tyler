@@ -85,10 +85,6 @@ export default async function StoreDetailPage({
           <StoreBadges storeId={store.store_id} status={store.status} />
         </div>
         {online ? (
-          <p className="mt-2 text-sm leading-relaxed text-stone-500">
-            동행복권 공식 온라인 판매 채널입니다. 전국 온라인 구매 당첨이 모두 이 채널 하나로
-            집계되므로, 오프라인 지점과는 성격이 다릅니다.
-          </p>
         ) : (
           <div className="mt-2 space-y-1 text-sm text-stone-500">
             {store.address && <p>{store.address}</p>}
@@ -173,9 +169,6 @@ export default async function StoreDetailPage({
             아직 1·2등 배출 이력이 없습니다.
           </p>
         )}
-        <p className="text-xs text-stone-400">
-          같은 회차·같은 등수의 당첨자는 한 줄로 합산했습니다. 2명 이상이면 인원을 표기합니다.
-        </p>
       </section>
     </div>
   );

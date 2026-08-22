@@ -66,9 +66,6 @@ export default async function NumbersPage({
         ))}
       />
 
-      <p className="text-xs leading-relaxed text-stone-400">
-        출현 빈도는 과거 기록일 뿐이며, 매 회차는 독립 추첨이라 미래의 당첨 확률과는 무관합니다.
-      </p>
     </div>
   );
 }

@@ -45,16 +45,17 @@ export default async function HomePage() {
         <div className="mt-4">
           <BallRow numbers={drawNumbers(latest)} bonus={latest.bonus} size="lg" />
         </div>
-        <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
-          <div className="rounded-lg bg-stone-50 p-3">
+        {/* 375px 에선 박스 2개를 세로로 쌓고 라벨·값을 한 줄에(값이 줄바꿈되지 않게), sm 이상은 기존 2열 박스 */}
+        <dl className="mt-5 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 sm:gap-3">
+          <div className="flex items-baseline gap-2 rounded-lg bg-stone-50 px-3 py-2 sm:block sm:p-3">
             <dt className="text-stone-500">1등</dt>
-            <dd className="mt-0.5 font-semibold">
+            <dd className="font-semibold sm:mt-0.5">
               {latest.r1_winners ?? "-"}명 · 각 {wonShort(latest.r1_prize_each)}
             </dd>
           </div>
-          <div className="rounded-lg bg-stone-50 p-3">
+          <div className="flex items-baseline gap-2 rounded-lg bg-stone-50 px-3 py-2 sm:block sm:p-3">
             <dt className="text-stone-500">2등</dt>
-            <dd className="mt-0.5 font-semibold">
+            <dd className="font-semibold sm:mt-0.5">
               {latest.r2_winners ?? "-"}명 · 각 {wonShort(latest.r2_prize_each)}
             </dd>
           </div>
