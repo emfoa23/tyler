@@ -244,9 +244,6 @@ export default async function DrawDetailPage({
           <>
             <WinList wins={wins} rank={1} />
             <WinList wins={wins} rank={2} />
-            <p className="text-xs text-stone-400">
-              같은 지점의 당첨자는 한 줄로 합산했습니다. 2명 이상이면 인원을 표기합니다.
-            </p>
           </>
         ) : (
           <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-500">
