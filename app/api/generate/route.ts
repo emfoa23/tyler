@@ -89,6 +89,8 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const clientId = url.searchParams.get("clientId") ?? "";
   const beforeId = Number(url.searchParams.get("beforeId")) || null;
+  // wins=1: 당첨(matched_rank ≥ 1)만 — 추첨 전(null)·낙첨(0) 제외. 총계(count)도 같은 조건.
+  const winsOnly = url.searchParams.get("wins") === "1";
   if (!UUID_RE.test(clientId)) {
     return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
   }
@@ -102,6 +104,7 @@ export async function GET(req: Request) {
     .eq("client_id", clientId)
     .order("id", { ascending: false })
     .limit(PAGE_SIZE);
+  if (winsOnly) query = query.gt("matched_rank", 0);
   if (beforeId) query = query.lt("id", beforeId);
   const { data: sets, count: total, error } = await query;
   if (error) {
