@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "lottogen — 로또 번호 생성기",
+    name: "lottogen — 로또 당첨번호·명당·번호통계",
     short_name: "lottogen",
     description:
-      "로또 6/45 번호 생성, 회차별 당첨 결과, 1·2등 배출 명당 순위",
+      "로또 당첨번호·명당 순위·자주 나오는 번호·번호 생성",
     start_url: "/",
     display: "browser",
     background_color: "#fafaf9",

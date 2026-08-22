@@ -10,6 +10,7 @@ import {
   drawNumbers, firstTypeSummary, isOnlineStore, methodLabel, methodSummary, storeDisplayName,
 } from "@/lib/lotto";
 import { getDraw, getDrawWins, getLatestDraw, type DrawWin } from "@/lib/queries";
+import { pageMeta } from "@/lib/seo";
 
 export const revalidate = 3600;
 
@@ -46,20 +47,21 @@ export async function generateMetadata({
   const { draw: drawParam } = await params;
   const drawNo = Number(drawParam);
   const draw = Number.isInteger(drawNo) && drawNo >= 1 ? await getDraw(drawNo) : null;
-  if (!draw) return { title: `제${drawParam}회 당첨 결과`, robots: { index: false } };
-  const nums = drawNumbers(draw).join("·");
+  if (!draw) {
+    return pageMeta({
+      core: `${drawParam}회 당첨 결과`,
+      description: "다른 회차를 선택해보세요",
+      path: `/history/${drawParam}`,
+      noindex: true,
+    });
+  }
+  // 당첨번호는 title/description 에 넣지 않는다(페이지에 들어와야 보이게) — 구조화 데이터(JSON-LD)에만 둔다.
   const [y, m, d] = draw.draw_date.split("-").map(Number);
-  const summary = drawSummary(draw);
-  return {
-    title: `로또 ${draw.draw_no}회 당첨번호 ${nums}+${draw.bonus} (${y}.${m}.${d} 추첨)`,
-    description: summary,
-    alternates: { canonical: `/history/${draw.draw_no}` },
-    openGraph: {
-      title: `로또 ${draw.draw_no}회 당첨번호 ${nums}+${draw.bonus}`,
-      description: summary,
-      url: `/history/${draw.draw_no}`,
-    },
-  };
+  return pageMeta({
+    core: `로또 ${draw.draw_no}회 당첨번호`,
+    description: `${y}.${m}.${d} 추첨, 1등 배출점까지 확인하세요`,
+    path: `/history/${draw.draw_no}`,
+  });
 }
 
 const RANKS = [1, 2, 3, 4, 5] as const;
@@ -161,7 +163,7 @@ export default async function DrawDetailPage({
           itemListElement: [
             { "@type": "ListItem", position: 1, name: "홈", item: "https://lottogen.click" },
             { "@type": "ListItem", position: 2, name: "당첨 결과", item: "https://lottogen.click/history" },
-            { "@type": "ListItem", position: 3, name: `제${draw.draw_no}회` },
+            { "@type": "ListItem", position: 3, name: `${draw.draw_no}회` },
           ],
         }}
       />
@@ -182,7 +184,7 @@ export default async function DrawDetailPage({
           href={`/history/${drawNo - 1}`}
           className={`rounded-lg border border-stone-200 bg-white px-3 py-1.5 hover:bg-stone-50 ${drawNo <= 1 ? "invisible" : ""}`}
         >
-          ← 제{drawNo - 1}회<span className="hidden sm:inline"> 당첨번호</span>
+          ← {drawNo - 1}회<span className="hidden sm:inline"> 당첨번호</span>
         </Link>
         <Link href="/history" className="text-stone-500 hover:underline">
           전체 회차
@@ -191,7 +193,7 @@ export default async function DrawDetailPage({
           href={`/history/${drawNo + 1}`}
           className={`rounded-lg border border-stone-200 bg-white px-3 py-1.5 hover:bg-stone-50 ${latest && drawNo >= latest.draw_no ? "invisible" : ""}`}
         >
-          제{drawNo + 1}회<span className="hidden sm:inline"> 당첨번호</span> →
+          {drawNo + 1}회<span className="hidden sm:inline"> 당첨번호</span> →
         </Link>
       </nav>
 

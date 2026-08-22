@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "개인정보처리방침",
-  description:
-    "lottogen 개인정보처리방침 — 회원가입 없이 이용하는 서비스로, 개인을 식별하는 정보를 수집하지 않습니다.",
-};
+export const metadata: Metadata = pageMeta({
+  core: "개인정보처리방침",
+  description: "수집 항목과 보관 원칙을 확인해보세요",
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (

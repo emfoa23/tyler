@@ -10,11 +10,10 @@ const ADSENSE_CLIENT = "ca-pub-4095847360915092";
 export const metadata: Metadata = {
   metadataBase: new URL("https://lottogen.click"),
   title: {
-    default: "lottogen — 로또 번호 생성기",
+    default: "lottogen — 로또 당첨번호·명당·번호통계",
     template: "%s | lottogen",
   },
-  description:
-    "로또 6/45 회차별 당첨번호·당첨 결과, 1·2등 배출 명당 순위, 자주 나오는 번호 통계, 번호 생성. 생성한 번호가 실제로 당첨됐는지도 확인하세요.",
+  description: "이번 주 결과를 확인하고 행운을 뽑아보세요",
   keywords: [
     "로또", "로또 번호 생성", "로또 번호 추천", "로또 당첨번호", "로또 당첨번호 조회",
     "로또 명당", "로또 1등 판매점", "로또 판매점", "로또 6/45", "당첨 통계",
@@ -22,8 +21,8 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "./" },
   openGraph: {
-    title: "lottogen — 로또 번호 생성기",
-    description: "로또 회차별 당첨번호 · 명당 순위 · 자주 나오는 번호 · 번호 생성",
+    title: "lottogen — 로또 당첨번호·명당·번호통계",
+    description: "이번 주 결과를 확인하고 행운을 뽑아보세요",
     url: "https://lottogen.click",
     siteName: "lottogen",
     locale: "ko_KR",
@@ -31,8 +30,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "lottogen — 로또 번호 생성기",
-    description: "로또 회차별 당첨번호 · 명당 순위 · 자주 나오는 번호 · 번호 생성",
+    title: "lottogen — 로또 당첨번호·명당·번호통계",
+    description: "이번 주 결과를 확인하고 행운을 뽑아보세요",
   },
   robots: { index: true, follow: true },
   other: {
@@ -51,7 +50,7 @@ const JSON_LD = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: "lottogen",
-  alternateName: "로또젠 — 로또 번호 생성기",
+  alternateName: "로또젠 — 로또 당첨번호·명당·번호통계",
   url: "https://lottogen.click",
   inLanguage: "ko",
   description:

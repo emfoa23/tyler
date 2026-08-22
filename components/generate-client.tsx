@@ -166,7 +166,7 @@ export function GenerateClient() {
         ) : (
           meta?.nextTarget && (
             <p className="mt-1 text-sm text-stone-500">
-              지금 생성하면 <b>제{meta.nextTarget}회</b>
+              지금 생성하면 <b>{meta.nextTarget}회</b>
               {meta.nextTargetDate && ` (${dateShort(meta.nextTargetDate)} 추첨)`} 대상으로 기록됩니다
             </p>
           )
@@ -299,7 +299,7 @@ export function GenerateClient() {
               return (
                 <div key={target} className="rounded-2xl border border-stone-200 bg-white p-4">
                   <div className="flex items-baseline justify-between">
-                    <h3 className="text-sm font-semibold">제{target}회 대상</h3>
+                    <h3 className="text-sm font-semibold">{target}회 대상</h3>
                     {draw && (
                       <span className="text-xs text-stone-400">
                         당첨번호 {dateShort(draw.draw_date)}

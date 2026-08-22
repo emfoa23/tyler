@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import Link from "next/link";
 
-export const metadata: Metadata = {
-  title: "서비스 소개",
-  description:
-    "lottogen 은 로또 6/45 번호 생성, 1회차부터의 회차별 당첨 결과, 1·2등 배출 명당 순위를 제공하는 무료 서비스입니다.",
-};
+export const metadata: Metadata = pageMeta({
+  core: "서비스 소개",
+  description: "데이터 출처와 이용 안내를 읽어보세요",
+  path: "/about",
+});
 
 export default function AboutPage() {
   return (
