@@ -79,6 +79,8 @@ export function GenerateClient() {
   const [error, setError] = useState<string | null>(null);
   const [fixed, setFixed] = useState<number[]>([]);
   const [showFixed, setShowFixed] = useState(false);
+  // 내 생성 기록 필터 — 켜면 당첨(5등 이상)만, 토글할 때마다 목록을 첫 페이지(20개)로 리셋한다
+  const [winsOnly, setWinsOnly] = useState(false);
 
   // 반자동: 실제 로또처럼 최대 5개까지 고정, 나머지는 서버 무작위
   function toggleFixed(n: number) {
@@ -87,8 +89,8 @@ export function GenerateClient() {
     );
   }
 
-  const load = useCallback(async (cid: string) => {
-    const res = await fetch(`/api/generate?clientId=${cid}`, { cache: "no-store" });
+  const load = useCallback(async (cid: string, wins: boolean) => {
+    const res = await fetch(`/api/generate?clientId=${cid}${wins ? "&wins=1" : ""}`, { cache: "no-store" });
     if (!res.ok) throw new Error("load failed");
     const body: ApiData = await res.json();
     setSets(body.sets);
@@ -100,7 +102,7 @@ export function GenerateClient() {
   useEffect(() => {
     const cid = getClientId();
     setClientId(cid);
-    load(cid)
+    load(cid, false)
       .catch(() => setError("기록을 불러오지 못했습니다."))
       .finally(() => setLoading(false));
   }, [load]);
@@ -122,8 +124,8 @@ export function GenerateClient() {
       }
       // 최신이 위로 쌓이는 롤링 스택 — 최근 5세트만 유지 (5세트 뽑기는 전부 교체)
       setFresh((prev) => [...body.sets, ...prev].slice(0, 5));
-      // 전체 재로드 — 새 세트가 맨 위로 오고 페이징은 첫 페이지로 리셋된다
-      await load(clientId);
+      // 전체 재로드(현재 필터 유지) — 새 세트가 맨 위로 오고 페이징은 첫 페이지로 리셋된다
+      await load(clientId, winsOnly);
     } catch {
       setError("네트워크 오류가 발생했습니다.");
     } finally {
@@ -136,9 +138,10 @@ export function GenerateClient() {
     setLoadingMore(true);
     try {
       const beforeId = sets[sets.length - 1].id;
-      const res = await fetch(`/api/generate?clientId=${clientId}&beforeId=${beforeId}`, {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/generate?clientId=${clientId}&beforeId=${beforeId}${winsOnly ? "&wins=1" : ""}`,
+        { cache: "no-store" },
+      );
       if (!res.ok) throw new Error("load failed");
       const body: ApiData = await res.json();
       setSets((prev) => [...prev, ...body.sets]);
@@ -147,6 +150,20 @@ export function GenerateClient() {
       setError("기록을 더 불러오지 못했습니다.");
     } finally {
       setLoadingMore(false);
+    }
+  }
+
+  async function toggleWinsOnly(next: boolean) {
+    if (!clientId || loading) return;
+    setWinsOnly(next);
+    setLoading(true);
+    setError(null);
+    try {
+      await load(clientId, next);
+    } catch {
+      setError("기록을 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -276,14 +293,26 @@ export function GenerateClient() {
       )}
 
       <section className="space-y-3">
-        <h2 className="font-bold">
-          내 생성 기록
-          {total > 0 && (
-            <span className="ml-1.5 text-sm font-normal text-stone-400">
-              총 {total.toLocaleString("ko-KR")}세트
-            </span>
-          )}
-        </h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="font-bold">
+            내 생성 기록
+            {total > 0 && (
+              <span className="ml-1.5 text-sm font-normal text-stone-400">
+                총 {total.toLocaleString("ko-KR")}세트
+              </span>
+            )}
+          </h2>
+          <label className="flex shrink-0 items-center gap-1.5 text-sm text-stone-500">
+            <input
+              type="checkbox"
+              className="size-4 accent-amber-500"
+              checked={winsOnly}
+              disabled={loading || !clientId}
+              onChange={(e) => toggleWinsOnly(e.target.checked)}
+            />
+            당첨만 보기
+          </label>
+        </div>
         <p className="text-xs text-stone-400">이 기기(브라우저) 기준으로 저장됩니다.</p>
         {loading ? (
           <HistorySkeleton />
@@ -291,7 +320,7 @@ export function GenerateClient() {
           <>
             {groups.length === 0 && (
               <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-500">
-                아직 생성한 번호가 없습니다.
+                {winsOnly ? "아직 당첨된 세트가 없습니다." : "아직 생성한 번호가 없습니다."}
               </p>
             )}
             {groups.map(([target, sets]) => {
