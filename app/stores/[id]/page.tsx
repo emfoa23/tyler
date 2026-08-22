@@ -8,6 +8,7 @@ import { StoreBadges } from "@/components/store-badge";
 import { dateShort } from "@/lib/format";
 import { isOnlineStore, methodLabel, methodSummary, storeDisplayName } from "@/lib/lotto";
 import { getStore, getStoreWins, type StoreWinRow } from "@/lib/queries";
+import { pageMeta, storeTitleCore } from "@/lib/seo";
 
 export const revalidate = 3600;
 
@@ -22,14 +23,14 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const store = await getStore(id);
-  if (!store) return { title: "지점" };
-  const where = isOnlineStore(store.store_id)
-    ? "동행복권 공식 온라인 판매 채널"
-    : [store.sido, store.sigungu].filter(Boolean).join(" ");
-  return {
-    title: `${storeDisplayName(store)} — 배출 이력`,
-    description: `${where ? `${where} ` : ""}${storeDisplayName(store)}의 로또 1·2등 배출 이력과 회차별 당첨 기록`,
-  };
+  if (!store) {
+    return pageMeta({ core: "지점", description: "다른 지점을 찾아보세요", path: `/stores/${id}`, noindex: true });
+  }
+  return pageMeta({
+    core: storeTitleCore(storeDisplayName(store)),
+    description: "이 지점의 1·2등 배출 이력을 확인해보세요",
+    path: `/stores/${store.store_id}`,
+  });
 }
 
 export default async function StoreDetailPage({
@@ -133,7 +134,7 @@ export default async function StoreDetailPage({
                   <span className="flex items-center gap-2">
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold">제{g.draw_no}회</span>
+                        <span className="text-sm font-semibold">{g.draw_no}회</span>
                         <span
                           className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${
                             g.rank === 1 ? "bg-amber-100 text-amber-700" : "bg-stone-100 text-stone-600"

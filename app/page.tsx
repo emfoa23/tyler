@@ -3,15 +3,14 @@ import Link from "next/link";
 import { Ball, BallRow } from "@/components/ball";
 import { StoreBadges } from "@/components/store-badge";
 import { dateK, dateShort, wonShort } from "@/lib/format";
+import { HOME_DESCRIPTION, HOME_TITLE, pageMeta } from "@/lib/seo";
 import { drawNumbers, isOnlineStore, storeDisplayName } from "@/lib/lotto";
 import { getDraws, getLatestDraw, getNumberFrequency, getRanking } from "@/lib/queries";
 
 export const revalidate = 3600;
 
 // 레이아웃의 상대 canonical("./") 이 홈에서만 "/index" 로 풀리는 Next 동작이 있어 명시로 고정
-export const metadata: Metadata = {
-  alternates: { canonical: "/" },
-};
+export const metadata: Metadata = pageMeta({ absoluteTitle: HOME_TITLE, description: HOME_DESCRIPTION, path: "/" });
 
 export default async function HomePage() {
   const latest = await getLatestDraw();
@@ -144,7 +143,7 @@ export default async function HomePage() {
             <li key={d.draw_no}>
               <Link href={`/history/${d.draw_no}`} className="block py-2.5 hover:bg-stone-50">
                 <span className="flex items-baseline gap-3">
-                  <span className="text-sm font-semibold">제{d.draw_no}회</span>
+                  <span className="text-sm font-semibold">{d.draw_no}회</span>
                   <span className="text-xs text-stone-500">{dateShort(d.draw_date)}</span>
                 </span>
                 <span className="mt-1.5 block">

@@ -3,8 +3,9 @@ import Link from "next/link";
 import { StoreBadges } from "@/components/store-badge";
 import { StoresFilter } from "@/components/stores-filter";
 import { dateShort } from "@/lib/format";
-import { SIDO_FULL_NAME, SIDO_LIST, isOnlineStore, storeDisplayName } from "@/lib/lotto";
+import { SIDO_LIST, isOnlineStore, storeDisplayName } from "@/lib/lotto";
 import { RANKING_PER_PAGE, getRanking } from "@/lib/queries";
+import { pageMeta } from "@/lib/seo";
 
 export const revalidate = 3600;
 
@@ -14,39 +15,19 @@ function sidoOf(params: Params): string | null {
   return SIDO_LIST.includes(params.sido ?? "") ? params.sido! : null;
 }
 
-// `?sido=` 변형은 별도 페이지 없이 지역명 title/description + 자기 canonical 로 색인되게 한다
-// ("서울 로또 명당 순위" 검색 → /stores?sido=서울). rank/months/page 는 같은 내용의 보기 차이라
-// canonical 에서 제외한다.
+// `?sido=` 변형은 별도 페이지 없이 지역명 title + 자기 canonical 로 색인되게 한다
+// ("서울 로또 명당 순위" 검색 → /stores?sido=서울). rank/months/page 는 같은 내용의 보기 차이라 canonical 에서 제외.
 export async function generateMetadata({
   searchParams,
 }: {
   searchParams: Promise<Params>;
 }): Promise<Metadata> {
   const sido = sidoOf(await searchParams);
-  const canonical = sido ? `/stores?sido=${encodeURIComponent(sido)}` : "/stores";
-  if (sido) {
-    const full = SIDO_FULL_NAME[sido] ?? sido;
-    return {
-      title: `${sido} 로또 명당 순위 — ${full} 1·2등 배출 판매점`,
-      description: `${full}(${sido}) 로또 명당 순위. ${sido}에서 로또 1·2등을 가장 많이 배출한 판매점을 최근 6개월·1년·5년·전체 기간, 1등/2등별로 보여주고 지점별 회차 배출 이력도 볼 수 있습니다.`,
-      alternates: { canonical },
-      openGraph: {
-        title: `${sido} 로또 명당 순위 | lottogen`,
-        description: `${full} 1·2등 배출 판매점 순위`,
-        url: canonical,
-      },
-    };
-  }
-  return {
-    title: "로또 명당 순위 — 전국·시도별 1·2등 배출 판매점",
-    description: `로또 1·2등을 가장 많이 배출한 판매점 순위(명당). 전국과 ${SIDO_LIST.join("·")} 시도별로, 최근 6개월·1년·5년·전체 기간, 1등/2등별 필터로 볼 수 있고 지점별 회차 배출 이력도 제공합니다.`,
-    alternates: { canonical },
-    openGraph: {
-      title: "로또 명당 순위 | lottogen",
-      description: "전국·시도별 1·2등 배출 판매점 순위",
-      url: canonical,
-    },
-  };
+  return pageMeta({
+    core: sido ? `${sido} 로또 명당 순위` : "전국 로또 명당 순위",
+    description: "내 동네 1등 배출점을 찾아보세요",
+    path: sido ? `/stores?sido=${encodeURIComponent(sido)}` : "/stores",
+  });
 }
 
 function qs(p: Params, overrides: Partial<Params>): string {
