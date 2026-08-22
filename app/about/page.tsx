@@ -37,7 +37,7 @@ export default function AboutPage() {
             <Link href="/stores" className="font-medium text-amber-600 hover:underline">
               명당 순위
             </Link>{" "}
-            — 1·2등을 배출한 판매점 순위을 지역·기간·등수별로 볼 수 있고, 지점마다 회차별
+            — 1·2등을 배출한 판매점 순위를 지역·기간·등수별로 볼 수 있고, 지점마다 회차별
             배출 이력을 제공합니다.
           </li>
           <li>
@@ -71,7 +71,7 @@ export default function AboutPage() {
             당첨을 보장하거나 당첨 확률을 높여주지 않습니다.
           </li>
           <li>
-            과거 당첨 통계와 명당 순위은 흥미로운 기록일 뿐, 미래의 당첨 확률과는 무관합니다.
+            과거 당첨 통계와 명당 순위는 흥미로운 기록일 뿐, 미래의 당첨 확률과는 무관합니다.
             매 회차 추첨은 독립 사건입니다.
           </li>
           <li>복권 구매는 만 19세 이상만 가능하며, 책임질 수 있는 범위에서 즐겨주세요.</li>

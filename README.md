@@ -25,10 +25,17 @@
 cron-job.org (유일한 스케줄러)
   │  POST /repos/emfoa23/tyler/actions/workflows/{yml}/dispatches
   ├─ sync-draw    토 20:50/21:05/21:30/23:05/23:30 + 일 10:00 KST (멱등 재시도)
-  │    당첨결과 upsert → 배출점 upsert → 생성번호 대조 → ISR revalidate
+  │    당첨결과 upsert → 배출점 upsert → 생성번호 대조 → ISR revalidate → IndexNow 핑
   ├─ sync-stores  일요일 새벽 주 1회 — 전국 판매점 마스터 upsert + 미출현 지점 closed 마킹
   └─ keepalive    매일 — GET /api/ops/keepalive (Supabase 무료 pause 방지)
 ```
+
+## 검색 노출(SEO)
+
+- 페이지별 title/description/OG/JSON-LD 는 데이터 기반 템플릿(회차 상세=당첨번호·당첨금 요약, 명당=`?sido=` 변형이 지역명 title + 자기 canonical, 번호 통계·목록·홈). 본문 중복 금지 원칙 — 요약은 메타에만.
+- `app/sitemap.ts`: 핵심 페이지 + 17개 `?sido=` 명당 변형 + 전 회차 상세(지점 페이지는 제외 — ISR 폭증 방지). `public/robots.txt` 전체 허용 + sitemap.
+- IndexNow(`scripts/lib/indexnow.mjs`, 키 파일 `public/<key>.txt`): sync-draw 가 변경을 반영하면 홈·목록·명당·번호·최신 회차 URL 을 핑(네이버·Bing 등 참여 엔진). Google 은 sitemap + Search Console.
+- `public/llms.txt`: 페이지 패턴·데이터·갱신 주기(생성형 검색 인용용).
 
 ## 데이터 소스
 

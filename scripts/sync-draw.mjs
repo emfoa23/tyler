@@ -6,6 +6,7 @@ import {
 } from "./lib/dhlottery.mjs";
 import { countRows, del, insert, patchCount, rpc, select, upsert } from "./lib/supa.mjs";
 import { sleep, uniqueBy } from "./lib/util.mjs";
+import { pingIndexNow } from "./lib/indexnow.mjs";
 
 const latestRows = await select("draws?select=draw_no,draw_date&order=draw_no.desc&limit=1");
 if (!latestRows.length) {
@@ -106,6 +107,17 @@ if (changed && site && secret) {
     console.log(`revalidate: ${res.status}`);
   } catch (e) {
     console.warn(`revalidate failed (non-fatal): ${e}`);
+  }
+}
+
+// 5) 변경이 있었으면 IndexNow 핑 — 새 회차 페이지가 검색엔진에 빨리 잡히게 (비치명, 실패해도 성공 종료)
+if (changed) {
+  const latestNo = (await select("draws?select=draw_no&order=draw_no.desc&limit=1"))[0]?.draw_no;
+  const paths = ["/", "/history", "/stores", "/numbers", ...(latestNo ? [`/history/${latestNo}`] : [])];
+  try {
+    console.log(`indexnow: ${await pingIndexNow(paths)} (${paths.length} urls)`);
+  } catch (e) {
+    console.warn(`indexnow failed (non-fatal): ${e}`);
   }
 }
 

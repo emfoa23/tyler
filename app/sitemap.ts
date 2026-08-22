@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { drawDateFor } from "@/lib/lotto";
+import { SIDO_LIST, drawDateFor } from "@/lib/lotto";
 import { getLatestDraw } from "@/lib/queries";
 
 export const revalidate = 86400;
@@ -20,6 +20,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.3 },
   ];
 
+  // 지역별 명당 순위 — 별도 페이지 없이 ?sido= 변형을 자기 canonical 로 색인(“서울 로또 명당 순위”).
+  const sidoStores: MetadataRoute.Sitemap = SIDO_LIST.map((sido) => ({
+    url: `${base}/stores?sido=${encodeURIComponent(sido)}`,
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+    lastModified: latest?.draw_date,
+  }));
+
   const draws: MetadataRoute.Sitemap = latest
     ? Array.from({ length: latest.draw_no }, (_, i) => ({
         url: `${base}/history/${i + 1}`,
@@ -30,5 +38,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }))
     : [];
 
-  return [...core, ...draws];
+  return [...core, ...sidoStores, ...draws];
 }
