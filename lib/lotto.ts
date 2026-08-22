@@ -67,6 +67,17 @@ export function methodSummary(methods: Map<string, number>): string {
   return [...methods].map(([m, c]) => (c > 1 ? `${m} ${c}` : m)).join(" · ");
 }
 
+// 회차의 1등 구매유형 요약: "자동 10 · 수동 12 · 반자동 1" — 0건 유형은 생략,
+// 전부 0(공개 전·데이터 없는 구회차)이면 null (sync 가 합계 0 을 null 로 정규화).
+export function firstTypeSummary(
+  draw: Pick<Draw, "first_auto" | "first_manual" | "first_semi">,
+): string | null {
+  const parts = ([["Q", draw.first_auto], ["M", draw.first_manual], ["B", draw.first_semi]] as const)
+    .filter(([, n]) => (n ?? 0) > 0)
+    .map(([m, n]) => `${methodLabel(m)} ${n}`);
+  return parts.length ? parts.join(" · ") : null;
+}
+
 export function isOnlineStore(storeId: string): boolean {
   return storeId === ONLINE_STORE_ID;
 }
