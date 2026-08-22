@@ -74,6 +74,8 @@ export function GenerateClient() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  // 기록 목록만 다시 불러올 때(필터 토글) — 상단 생성 카드·통계는 그대로 두고 목록만 스켈레톤
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [fresh, setFresh] = useState<GeneratedSet[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -154,16 +156,16 @@ export function GenerateClient() {
   }
 
   async function toggleWinsOnly(next: boolean) {
-    if (!clientId || loading) return;
+    if (!clientId || loading || historyLoading) return;
     setWinsOnly(next);
-    setLoading(true);
+    setHistoryLoading(true);
     setError(null);
     try {
       await load(clientId, next);
     } catch {
       setError("기록을 불러오지 못했습니다.");
     } finally {
-      setLoading(false);
+      setHistoryLoading(false);
     }
   }
 
@@ -307,14 +309,14 @@ export function GenerateClient() {
               type="checkbox"
               className="size-4 accent-amber-500"
               checked={winsOnly}
-              disabled={loading || !clientId}
+              disabled={loading || historyLoading || !clientId}
               onChange={(e) => toggleWinsOnly(e.target.checked)}
             />
             당첨만 보기
           </label>
         </div>
         <p className="text-xs text-stone-400">이 기기(브라우저) 기준으로 저장됩니다.</p>
-        {loading ? (
+        {loading || historyLoading ? (
           <HistorySkeleton />
         ) : (
           <>
