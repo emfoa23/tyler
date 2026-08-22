@@ -85,6 +85,7 @@ export default async function StoreDetailPage({
           <StoreBadges storeId={store.store_id} status={store.status} />
         </div>
         {online ? (
+          <p className="mt-2 text-sm leading-relaxed text-stone-500">동행복권 공식 온라인 판매 채널입니다.</p>
         ) : (
           <div className="mt-2 space-y-1 text-sm text-stone-500">
             {store.address && <p>{store.address}</p>}
