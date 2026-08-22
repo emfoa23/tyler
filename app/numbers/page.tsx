@@ -8,9 +8,15 @@ import { getNumberFrequency } from "@/lib/queries";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "자주 나온 번호",
+  title: "로또 자주 나오는 번호 — 1~45 출현 빈도 통계",
   description:
-    "로또 6/45 번호별 출현 횟수 랭킹 — 전체 기간·최근 6개월·1년·5년, 보너스 번호 포함 옵션",
+    "로또 6/45에서 가장 자주 나오는 번호 순위. 1회차부터 현재까지 번호별 출현 횟수와 최근 출현 회차를 전체 기간·최근 6개월·1년·5년, 보너스 번호 포함 여부로 골라 볼 수 있습니다.",
+  alternates: { canonical: "/numbers" },
+  openGraph: {
+    title: "로또 자주 나오는 번호 | lottogen",
+    description: "1~45 번호별 출현 횟수 순위 — 기간·보너스 번호 포함 필터",
+    url: "/numbers",
+  },
 };
 
 type Params = { months?: string; bonus?: string };
@@ -29,7 +35,7 @@ export default async function NumbersPage({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">자주 나온 번호</h1>
+      <h1 className="text-xl font-bold">로또 자주 나오는 번호</h1>
 
       <NumbersFilter months={months ? String(months) : "all"} bonus={bonus ? "1" : "0"} />
 

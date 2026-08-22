@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "서비스 소개",
   description:
-    "lottogen 은 로또 6/45 번호 생성, 1회차부터의 회차별 당첨 결과, 1·2등 배출 명당 랭킹을 제공하는 무료 서비스입니다.",
+    "lottogen 은 로또 6/45 번호 생성, 1회차부터의 회차별 당첨 결과, 1·2등 배출 명당 순위을 제공하는 무료 서비스입니다.",
 };
 
 export default function AboutPage() {
@@ -35,16 +35,16 @@ export default function AboutPage() {
           </li>
           <li>
             <Link href="/stores" className="font-medium text-amber-600 hover:underline">
-              명당 랭킹
+              명당 순위
             </Link>{" "}
-            — 1·2등을 배출한 판매점 랭킹을 지역·기간·등수별로 볼 수 있고, 지점마다 회차별
+            — 1·2등을 배출한 판매점 순위을 지역·기간·등수별로 볼 수 있고, 지점마다 회차별
             배출 이력을 제공합니다.
           </li>
           <li>
             <Link href="/numbers" className="font-medium text-amber-600 hover:underline">
-              자주 나온 번호
+              자주 나오는 번호
             </Link>{" "}
-            — 번호별 출현 횟수 랭킹을 기간별로, 보너스 번호 포함 여부를 골라 볼 수 있습니다.
+            — 번호별 출현 횟수 순위을 기간별로, 보너스 번호 포함 여부를 골라 볼 수 있습니다.
           </li>
         </ul>
       </section>
@@ -71,7 +71,7 @@ export default function AboutPage() {
             당첨을 보장하거나 당첨 확률을 높여주지 않습니다.
           </li>
           <li>
-            과거 당첨 통계와 명당 랭킹은 흥미로운 기록일 뿐, 미래의 당첨 확률과는 무관합니다.
+            과거 당첨 통계와 명당 순위은 흥미로운 기록일 뿐, 미래의 당첨 확률과는 무관합니다.
             매 회차 추첨은 독립 사건입니다.
           </li>
           <li>복권 구매는 만 19세 이상만 가능하며, 책임질 수 있는 범위에서 즐겨주세요.</li>

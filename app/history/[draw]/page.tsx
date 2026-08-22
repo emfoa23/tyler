@@ -17,15 +17,48 @@ export async function generateStaticParams() {
   return [];
 }
 
+// 검색 스니펫·OG·JSON-LD 공용 요약 — 화면엔 같은 정보가 표·메타 줄로 이미 있어 본문에는 넣지 않는다.
+function drawSummary(draw: NonNullable<Awaited<ReturnType<typeof getDraw>>>): string {
+  const nums = drawNumbers(draw).join("·");
+  const parts = [
+    `로또 6/45 ${draw.draw_no}회(${dateK(draw.draw_date)} 추첨) 당첨번호 ${nums}, 보너스 ${draw.bonus}.`,
+  ];
+  const ranks = ([1, 2, 3] as const)
+    .map((r) => {
+      const n = draw[`r${r}_winners` as const];
+      const each = draw[`r${r}_prize_each` as const];
+      return n === null ? null : `${r}등 ${n.toLocaleString("ko-KR")}명${each === null ? "" : ` 각 ${won(each)}`}`;
+    })
+    .filter((x): x is string => x !== null);
+  if (ranks.length) parts.push(`${ranks.join(", ")}.`);
+  const types = firstTypeSummary(draw);
+  if (types) parts.push(`1등 구매 유형 ${types}.`);
+  if (draw.sales_total !== null) parts.push(`회차 판매액 ${wonShort(draw.sales_total)}.`);
+  parts.push("1·2등 배출점 목록 포함.");
+  return parts.join(" ");
+}
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ draw: string }>;
 }): Promise<Metadata> {
-  const { draw } = await params;
+  const { draw: drawParam } = await params;
+  const drawNo = Number(drawParam);
+  const draw = Number.isInteger(drawNo) && drawNo >= 1 ? await getDraw(drawNo) : null;
+  if (!draw) return { title: `제${drawParam}회 당첨 결과`, robots: { index: false } };
+  const nums = drawNumbers(draw).join("·");
+  const [y, m, d] = draw.draw_date.split("-").map(Number);
+  const summary = drawSummary(draw);
   return {
-    title: `제${draw}회 당첨 결과`,
-    description: `로또 6/45 제${draw}회 당첨번호, 등위별 당첨금, 1·2등 배출점`,
+    title: `로또 ${draw.draw_no}회 당첨번호 ${nums}+${draw.bonus} (${y}.${m}.${d} 추첨)`,
+    description: summary,
+    alternates: { canonical: `/history/${draw.draw_no}` },
+    openGraph: {
+      title: `로또 ${draw.draw_no}회 당첨번호 ${nums}+${draw.bonus}`,
+      description: summary,
+      url: `/history/${draw.draw_no}`,
+    },
   };
 }
 
@@ -132,12 +165,24 @@ export default async function DrawDetailPage({
           ],
         }}
       />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          name: `로또 ${draw.draw_no}회 당첨번호`,
+          description: drawSummary(draw),
+          url: `https://lottogen.click/history/${draw.draw_no}`,
+          datePublished: draw.draw_date,
+          inLanguage: "ko",
+          isPartOf: { "@type": "WebSite", name: "lottogen", url: "https://lottogen.click" },
+        }}
+      />
       <nav className="flex items-center justify-between text-sm">
         <Link
           href={`/history/${drawNo - 1}`}
           className={`rounded-lg border border-stone-200 bg-white px-3 py-1.5 hover:bg-stone-50 ${drawNo <= 1 ? "invisible" : ""}`}
         >
-          ← 제{drawNo - 1}회
+          ← 제{drawNo - 1}회<span className="hidden sm:inline"> 당첨번호</span>
         </Link>
         <Link href="/history" className="text-stone-500 hover:underline">
           전체 회차
@@ -146,13 +191,14 @@ export default async function DrawDetailPage({
           href={`/history/${drawNo + 1}`}
           className={`rounded-lg border border-stone-200 bg-white px-3 py-1.5 hover:bg-stone-50 ${latest && drawNo >= latest.draw_no ? "invisible" : ""}`}
         >
-          제{drawNo + 1}회 →
+          제{drawNo + 1}회<span className="hidden sm:inline"> 당첨번호</span> →
         </Link>
       </nav>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-          <h1 className="text-xl font-bold">제{draw.draw_no}회</h1>
+        {/* 제목이 길어 375px 에선 날짜를 아래 줄로 — sm 이상은 기존처럼 양끝 한 줄 */}
+        <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-3">
+          <h1 className="text-xl font-bold">로또 {draw.draw_no}회 당첨번호</h1>
           <span className="text-sm text-stone-500">{dateK(draw.draw_date)} 추첨</span>
         </div>
         <div className="mt-4">
@@ -168,7 +214,7 @@ export default async function DrawDetailPage({
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
-        <h2 className="font-bold">등위별 당첨</h2>
+        <h2 className="font-bold">{draw.draw_no}회 등위별 당첨금</h2>
         {/* 375px 에서 좌우 스크롤 없이 다 보이도록 총액 열은 sm 이상에서만 */}
         <table className="mt-3 w-full text-sm">
           <thead>
@@ -193,7 +239,7 @@ export default async function DrawDetailPage({
       </section>
 
       <section className="space-y-4">
-        <h2 className="font-bold">1·2등 배출점</h2>
+        <h2 className="font-bold">{draw.draw_no}회 1·2등 배출점</h2>
         {wins.length ? (
           <>
             <WinList wins={wins} rank={1} />

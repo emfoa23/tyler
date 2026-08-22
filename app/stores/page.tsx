@@ -3,17 +3,51 @@ import Link from "next/link";
 import { StoreBadges } from "@/components/store-badge";
 import { StoresFilter } from "@/components/stores-filter";
 import { dateShort } from "@/lib/format";
-import { SIDO_LIST, isOnlineStore, storeDisplayName } from "@/lib/lotto";
+import { SIDO_FULL_NAME, SIDO_LIST, isOnlineStore, storeDisplayName } from "@/lib/lotto";
 import { RANKING_PER_PAGE, getRanking } from "@/lib/queries";
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
-  title: "명당 랭킹",
-  description: "로또 1·2등을 가장 많이 배출한 판매점 랭킹 — 지역·기간·등수별",
-};
-
 type Params = { rank?: string; months?: string; years?: string; sido?: string; page?: string };
+
+function sidoOf(params: Params): string | null {
+  return SIDO_LIST.includes(params.sido ?? "") ? params.sido! : null;
+}
+
+// `?sido=` 변형은 별도 페이지 없이 지역명 title/description + 자기 canonical 로 색인되게 한다
+// ("서울 로또 명당 순위" 검색 → /stores?sido=서울). rank/months/page 는 같은 내용의 보기 차이라
+// canonical 에서 제외한다.
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Params>;
+}): Promise<Metadata> {
+  const sido = sidoOf(await searchParams);
+  const canonical = sido ? `/stores?sido=${encodeURIComponent(sido)}` : "/stores";
+  if (sido) {
+    const full = SIDO_FULL_NAME[sido] ?? sido;
+    return {
+      title: `${sido} 로또 명당 순위 — ${full} 1·2등 배출 판매점`,
+      description: `${full}(${sido}) 로또 명당 순위. ${sido}에서 로또 1·2등을 가장 많이 배출한 판매점을 최근 6개월·1년·5년·전체 기간, 1등/2등별로 보여주고 지점별 회차 배출 이력도 볼 수 있습니다.`,
+      alternates: { canonical },
+      openGraph: {
+        title: `${sido} 로또 명당 순위 | lottogen`,
+        description: `${full} 1·2등 배출 판매점 순위`,
+        url: canonical,
+      },
+    };
+  }
+  return {
+    title: "로또 명당 순위 — 전국·시도별 1·2등 배출 판매점",
+    description: `로또 1·2등을 가장 많이 배출한 판매점 순위(명당). 전국과 ${SIDO_LIST.join("·")} 시도별로, 최근 6개월·1년·5년·전체 기간, 1등/2등별 필터로 볼 수 있고 지점별 회차 배출 이력도 제공합니다.`,
+    alternates: { canonical },
+    openGraph: {
+      title: "로또 명당 순위 | lottogen",
+      description: "전국·시도별 1·2등 배출 판매점 순위",
+      url: canonical,
+    },
+  };
+}
 
 function qs(p: Params, overrides: Partial<Params>): string {
   const merged: Record<string, string | undefined> = { ...p, ...overrides };
@@ -38,7 +72,7 @@ export default async function StoresPage({
   const monthsParam =
     params.months ?? (params.years === "1" ? "12" : params.years === "5" ? "60" : undefined);
   const months = ["6", "12", "60"].includes(monthsParam ?? "") ? Number(monthsParam) : null;
-  const sido = SIDO_LIST.includes(params.sido ?? "") ? params.sido! : null;
+  const sido = sidoOf(params);
   const page = Math.max(1, Number(params.page) || 1);
   const offset = (page - 1) * RANKING_PER_PAGE;
   // 페이지네이션 링크용 정규화 쿼리 (legacy years 를 months 로 흡수)
@@ -60,7 +94,7 @@ export default async function StoresPage({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">명당 랭킹</h1>
+      <h1 className="text-xl font-bold">{sido ? `${sido} 로또 명당 순위` : "로또 명당 순위"}</h1>
 
       <StoresFilter rank={rank} months={months ? String(months) : "all"} sido={sido ?? "all"} />
 

@@ -14,15 +14,16 @@ export const metadata: Metadata = {
     template: "%s | lottogen",
   },
   description:
-    "로또 6/45 번호 생성, 회차별 당첨 결과, 1·2등 배출 명당 랭킹. 생성한 번호가 실제로 당첨됐는지도 확인하세요.",
+    "로또 6/45 회차별 당첨번호·당첨 결과, 1·2등 배출 명당 순위, 자주 나오는 번호 통계, 번호 생성. 생성한 번호가 실제로 당첨됐는지도 확인하세요.",
   keywords: [
     "로또", "로또 번호 생성", "로또 번호 추천", "로또 당첨번호", "로또 당첨번호 조회",
     "로또 명당", "로또 1등 판매점", "로또 판매점", "로또 6/45", "당첨 통계",
+    "로또 명당 순위", "로또 자주 나오는 번호", "로또 회차별 당첨번호",
   ],
   alternates: { canonical: "./" },
   openGraph: {
     title: "lottogen — 로또 번호 생성기",
-    description: "로또 번호 생성 · 회차별 당첨 결과 · 명당 랭킹",
+    description: "로또 회차별 당첨번호 · 명당 순위 · 자주 나오는 번호 · 번호 생성",
     url: "https://lottogen.click",
     siteName: "lottogen",
     locale: "ko_KR",
@@ -31,7 +32,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "lottogen — 로또 번호 생성기",
-    description: "로또 번호 생성 · 회차별 당첨 결과 · 명당 랭킹",
+    description: "로또 회차별 당첨번호 · 명당 순위 · 자주 나오는 번호 · 번호 생성",
   },
   robots: { index: true, follow: true },
   other: {
@@ -54,7 +55,7 @@ const JSON_LD = {
   url: "https://lottogen.click",
   inLanguage: "ko",
   description:
-    "로또 6/45 번호 생성, 회차별 당첨 결과, 1·2등 배출 명당 랭킹을 제공하는 서비스",
+    "로또 6/45 회차별 당첨번호·당첨 결과, 1·2등 배출 명당 순위, 자주 나오는 번호 통계, 번호 생성을 제공하는 서비스",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

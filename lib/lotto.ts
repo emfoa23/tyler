@@ -1,7 +1,7 @@
 import type { Draw, DrawNumbers, Store } from "./types";
 
 // 온라인 판매 채널(동행복권 사이트). 배출점 데이터에 지점처럼 포함되며,
-// 랭킹·지점 페이지에도 예외 없이 포함하되 배지로만 구분한다 (2026-08-16 확정).
+// 순위·지점 페이지에도 예외 없이 포함하되 배지로만 구분한다 (2026-08-16 확정).
 export const ONLINE_STORE_ID = "51100000";
 
 // 동행복권 표준 번호 구간 색
@@ -87,7 +87,7 @@ export function storeDisplayName(store: Pick<Store, "store_id" | "name">): strin
   return isOnlineStore(store.store_id) ? "동행복권 사이트" : store.name;
 }
 
-// 기간 필터 공통 옵션 (명당 랭킹·번호 통계) — URL/RPC 는 월 단위
+// 기간 필터 공통 옵션 (명당 순위·번호 통계) — URL/RPC 는 월 단위
 export const MONTHS_OPTIONS = [
   { value: "all", label: "전체 기간" },
   { value: "6", label: "최근 6개월" },
@@ -99,3 +99,11 @@ export const SIDO_LIST = [
   "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
   "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주",
 ];
+
+// 시도 정식 명칭 — 검색 표기(title/description)용. UI 는 짧은 이름(SIDO_LIST)을 쓴다.
+export const SIDO_FULL_NAME: Record<string, string> = {
+  서울: "서울특별시", 부산: "부산광역시", 대구: "대구광역시", 인천: "인천광역시", 광주: "광주광역시",
+  대전: "대전광역시", 울산: "울산광역시", 세종: "세종특별자치시", 경기: "경기도", 강원: "강원특별자치도",
+  충북: "충청북도", 충남: "충청남도", 전북: "전북특별자치도", 전남: "전라남도", 경북: "경상북도",
+  경남: "경상남도", 제주: "제주특별자치도",
+};

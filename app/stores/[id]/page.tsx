@@ -74,7 +74,7 @@ export default async function StoreDetailPage({
           "@type": "BreadcrumbList",
           itemListElement: [
             { "@type": "ListItem", position: 1, name: "홈", item: "https://lottogen.click" },
-            { "@type": "ListItem", position: 2, name: "명당 랭킹", item: "https://lottogen.click/stores" },
+            { "@type": "ListItem", position: 2, name: "명당 순위", item: "https://lottogen.click/stores" },
             { "@type": "ListItem", position: 3, name: storeDisplayName(store) },
           ],
         }}

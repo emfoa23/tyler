@@ -1,6 +1,6 @@
 import { isOnlineStore } from "@/lib/lotto";
 
-// 온라인 채널(동행복권 사이트)·폐점 배지. 랭킹/배출점/지점 페이지 공통.
+// 온라인 채널(동행복권 사이트)·폐점 배지. 순위/배출점/지점 페이지 공통.
 export function StoreBadges({
   storeId,
   status,

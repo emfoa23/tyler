@@ -1,6 +1,6 @@
 "use client";
 
-// 필터 셀렉트 공통 표현 (명당 랭킹·번호 통계) — 변경 즉시 onChange 로 반영
+// 필터 셀렉트 공통 표현 (명당 순위·번호 통계) — 변경 즉시 onChange 로 반영
 export function FilterSelect({
   label,
   value,
