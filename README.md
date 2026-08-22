@@ -24,7 +24,7 @@
 ```
 cron-job.org (유일한 스케줄러)
   │  POST /repos/emfoa23/tyler/actions/workflows/{yml}/dispatches
-  ├─ sync-draw    토 21:00/21:30/23:00 + 일 10:00 KST (멱등 재시도)
+  ├─ sync-draw    토 20:50/21:05/21:30/23:05/23:30 + 일 10:00 KST (멱등 재시도)
   │    당첨결과 upsert → 배출점 upsert → 생성번호 대조 → ISR revalidate
   ├─ sync-stores  일요일 새벽 주 1회 — 전국 판매점 마스터 upsert + 미출현 지점 closed 마킹
   └─ keepalive    매일 — GET /api/ops/keepalive (Supabase 무료 pause 방지)
@@ -34,7 +34,8 @@ cron-job.org (유일한 스케줄러)
 
 동행복권 공개 JSON API (2026-08 개편 후, 전부 GET·UTF-8):
 
-- 회차별 당첨결과 `/lt645/selectPstLt645InfoNew.do?srchDir=center&srchLtEpsd={회차}` — 요청 회차부터 아래로 10개
+- 회차별 당첨결과 `/lt645/selectPstLt645InfoNew.do?srchDir=center&srchLtEpsd={회차}` — 요청 회차부터 아래로 10개.
+  1등 구매유형 `winType1/2/3` 은 공개 전(추첨 후 ~21:02)·데이터가 없는 261회차 이전에 null 이 아니라 0/0/0 으로 오므로 **합계 0 은 null 로 저장**한다
 - 회차별 1·2등 배출점 `/wnprchsplcsrch/selectLtWnShp.do?srchWnShpRnk=all&srchLtEpsd={회차}` — 262회차부터, 행=당첨 게임 1건
 - 전국 판매점 마스터 `/prchsplcsrch/selectLtShp.do?srchCtpvNm={시도}` — 시도는 짧은 이름("서울"), 페이지당 10건 고정
 
