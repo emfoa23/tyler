@@ -35,9 +35,10 @@ export default async function HomePage() {
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+        {/* 제목이 길어 375px 에선 날짜를 아래 줄로 — sm 이상은 기존처럼 양끝 한 줄 */}
+        <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-3">
           <h1 className="text-xl font-bold">
-            제{latest.draw_no}회 당첨번호
+            로또 {latest.draw_no}회 당첨번호
           </h1>
           <span className="text-sm text-stone-500">{dateK(latest.draw_date)} 추첨</span>
         </div>
@@ -77,7 +78,7 @@ export default async function HomePage() {
         <div className="flex items-baseline justify-between">
           <h2 className="font-bold">명당 TOP 5</h2>
           <Link href="/stores" className="text-sm text-stone-500 hover:underline">
-            전체 랭킹 →
+            전체 순위 →
           </Link>
         </div>
         <ol className="mt-3 divide-y divide-stone-100">
@@ -111,7 +112,7 @@ export default async function HomePage() {
       <section className="rounded-2xl border border-stone-200 bg-white p-6">
         <div className="flex items-baseline justify-between">
           <div>
-            <h2 className="font-bold">자주 나온 번호 TOP 5</h2>
+            <h2 className="font-bold">자주 나오는 번호 TOP 5</h2>
             <p className="mt-0.5 text-xs text-stone-400">최근 1년 기준</p>
           </div>
           <Link href="/numbers" className="text-sm text-stone-500 hover:underline">

@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 const NAV = [
   { href: "/generate", label: "번호 생성" },
   { href: "/history", label: "당첨 결과" },
-  { href: "/stores", label: "명당 랭킹" },
+  { href: "/stores", label: "명당 순위" },
   { href: "/numbers", label: "번호 통계" },
 ];
 // 드로어에만 두는 보조 메뉴
