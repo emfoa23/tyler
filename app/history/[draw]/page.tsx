@@ -6,7 +6,9 @@ import { JsonLd } from "@/components/json-ld";
 import { PagedList } from "@/components/paged-list";
 import { StoreBadges } from "@/components/store-badge";
 import { dateK, won, wonShort } from "@/lib/format";
-import { drawNumbers, isOnlineStore, methodLabel, methodSummary, storeDisplayName } from "@/lib/lotto";
+import {
+  drawNumbers, firstTypeSummary, isOnlineStore, methodLabel, methodSummary, storeDisplayName,
+} from "@/lib/lotto";
 import { getDraw, getDrawWins, getLatestDraw, type DrawWin } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -114,8 +116,8 @@ export default async function DrawDetailPage({
     each: draw[`r${r}_prize_each` as const],
     total: draw[`r${r}_prize_total` as const],
   }));
-  // 1등 구매유형은 공개 전·데이터 없는 구회차(≤261)에 null (sync 가 합계 0 을 null 로 정규화).
-  const hasFirstTypes = (draw.first_auto ?? draw.first_manual ?? draw.first_semi) !== null;
+  // 1등 구매유형 요약 — 0건 유형 생략, 공개 전·데이터 없는 구회차(≤261)는 null 이라 줄 자체를 숨긴다.
+  const firstTypes = firstTypeSummary(draw);
 
   return (
     <div className="space-y-6">
@@ -157,14 +159,9 @@ export default async function DrawDetailPage({
           <BallRow numbers={drawNumbers(draw)} bonus={draw.bonus} size="lg" />
         </div>
         {/* 메타 줄은 한 그룹으로 — 구매유형 줄이 없어도 공과의 간격(mt-3)이 같게 유지된다 */}
-        {(hasFirstTypes || draw.sales_total !== null) && (
+        {(firstTypes || draw.sales_total !== null) && (
           <div className="mt-3 space-y-1 text-sm text-stone-500">
-            {hasFirstTypes && (
-              <p>
-                1등 구매 유형 — 자동 {draw.first_auto ?? 0} · 수동 {draw.first_manual ?? 0} · 반자동{" "}
-                {draw.first_semi ?? 0}
-              </p>
-            )}
+            {firstTypes && <p>1등 구매 유형 — {firstTypes}</p>}
             {draw.sales_total !== null && <p>회차 판매액 {wonShort(draw.sales_total)}</p>}
           </div>
         )}
