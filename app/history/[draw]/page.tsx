@@ -114,6 +114,8 @@ export default async function DrawDetailPage({
     each: draw[`r${r}_prize_each` as const],
     total: draw[`r${r}_prize_total` as const],
   }));
+  // 1등 구매유형은 공개 전·데이터 없는 구회차(≤261)에 null (sync 가 합계 0 을 null 로 정규화).
+  const hasFirstTypes = (draw.first_auto ?? draw.first_manual ?? draw.first_semi) !== null;
 
   return (
     <div className="space-y-6">
@@ -154,14 +156,17 @@ export default async function DrawDetailPage({
         <div className="mt-4">
           <BallRow numbers={drawNumbers(draw)} bonus={draw.bonus} size="lg" />
         </div>
-        {(draw.first_auto ?? draw.first_manual ?? draw.first_semi) !== null && (
-          <p className="mt-3 text-sm text-stone-500">
-            1등 구매 유형 — 자동 {draw.first_auto ?? 0} · 수동 {draw.first_manual ?? 0} · 반자동{" "}
-            {draw.first_semi ?? 0}
-          </p>
-        )}
-        {draw.sales_total !== null && (
-          <p className="mt-1 text-sm text-stone-500">회차 판매액 {wonShort(draw.sales_total)}</p>
+        {/* 메타 줄은 한 그룹으로 — 구매유형 줄이 없어도 공과의 간격(mt-3)이 같게 유지된다 */}
+        {(hasFirstTypes || draw.sales_total !== null) && (
+          <div className="mt-3 space-y-1 text-sm text-stone-500">
+            {hasFirstTypes && (
+              <p>
+                1등 구매 유형 — 자동 {draw.first_auto ?? 0} · 수동 {draw.first_manual ?? 0} · 반자동{" "}
+                {draw.first_semi ?? 0}
+              </p>
+            )}
+            {draw.sales_total !== null && <p>회차 판매액 {wonShort(draw.sales_total)}</p>}
+          </div>
         )}
       </section>
 
