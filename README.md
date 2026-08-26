@@ -32,7 +32,7 @@ cron-job.org (유일한 스케줄러)
 
 ## 검색 노출(SEO)
 
-- 페이지 메타는 `lib/seo.ts` `pageMeta()` 단일 진입점 — title(`lottogen` 제외 15자)·description(30자 이내 행동 유도문, title 과 내용 중복 없음)·canonical·OG·Twitter 를 한 쌍의 값으로 채우고 og:image 는 전 페이지 공통 1장. 회차 상세 title/description 엔 당첨번호를 넣지 않는다(페이지에 들어와야 보이게, JSON-LD 에만). 명당은 `?sido=` 변형이 지역명 title + 자기 canonical.
+- 페이지 메타는 `lib/seo.ts` `pageMeta()` 단일 진입점 — title(`lottogen` 제외 15자, 단 지점 상세는 "지점명 — 로또 명당"으로 지점명을 자르지 않음)·description(30자 이내 행동 유도문, title 과 내용 중복 없음)·canonical·OG·Twitter 를 한 쌍의 값으로 채우고 og:image 는 전 페이지 공통 1장. 회차 상세 title/description 엔 당첨번호를 넣지 않는다(페이지에 들어와야 보이게, JSON-LD 에만). 명당은 `?sido=` 변형이 지역명 title + 자기 canonical.
 - `app/sitemap.ts`: 핵심 페이지 + 17개 `?sido=` 명당 변형 + 전 회차 상세(지점 페이지는 제외 — ISR 폭증 방지). `public/robots.txt` 전체 허용 + sitemap.
 - IndexNow(`scripts/lib/indexnow.mjs`, 키 파일 `public/<key>.txt`): sync-draw 가 변경을 반영하면 홈·목록·명당·번호·최신 회차 URL 을 핑(네이버·Bing 등 참여 엔진). Google 은 sitemap + Search Console.
 - `public/llms.txt`: 페이지 패턴·데이터·갱신 주기(생성형 검색 인용용).
