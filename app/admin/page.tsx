@@ -15,6 +15,7 @@ import {
   statWindowLabel,
 } from "@/lib/admin-analytics";
 import { AdminLogin } from "@/components/admin-login";
+import { AdminUiMarker } from "@/components/admin-ui-marker";
 import { AdminPeriodTabs } from "@/components/admin-period-tabs";
 import {
   AcquisitionSection,
@@ -63,6 +64,7 @@ export default async function AdminPage({
 
   return (
     <div className="space-y-4">
+      <AdminUiMarker />
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <h1 className="text-xl font-bold">운영 통계</h1>
         <AdminPeriodTabs current={window} />

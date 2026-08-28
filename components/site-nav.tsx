@@ -2,8 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+
+// 운영자 UI 힌트(localStorage) — 로그인 성공/어드민 렌더 시 심는 표시일 뿐, 권한이 아니다
+// (실제 게이트는 /admin 의 HttpOnly 쿠키 검증). 힌트만 있으면 메뉴 맨위에 '운영 통계'를 노출한다.
+export const ADMIN_UI_HINT_KEY = "tyler_admin_ui";
+const ADMIN_ITEM = { href: "/admin", label: "운영 통계" };
 
 const NAV = [
   { href: "/generate", label: "번호 생성" },
@@ -22,11 +27,22 @@ function isActive(pathname: string, href: string): boolean {
 export function SiteNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+
+  useEffect(() => {
+    try {
+      setShowAdmin(localStorage.getItem(ADMIN_UI_HINT_KEY) === "1");
+    } catch {
+      // storage 불가 환경 — 미노출
+    }
+  }, []);
+
+  const items = showAdmin ? [ADMIN_ITEM, ...NAV] : NAV;
 
   return (
     <>
       <nav className="hidden items-center gap-1 text-sm font-medium sm:flex">
-        {NAV.map((item) => (
+        {items.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -63,7 +79,7 @@ export function SiteNav() {
             className="absolute inset-0"
           />
           <nav className="absolute right-3 top-14 flex w-40 flex-col rounded-xl border border-stone-200 bg-white p-1.5 text-sm font-medium shadow-lg">
-            {[...NAV, ...DRAWER_EXTRA].map((item) => (
+            {[...items, ...DRAWER_EXTRA].map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

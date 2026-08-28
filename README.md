@@ -73,6 +73,10 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
   예외). raw 이벤트 90일 보존(`prune_analytics_events`), 롤업·기기 레지스트리(`analytics_devices`,
   first-touch 동결)는 영구. 방문 계열 수집 시작(2026-08-29) 전 과거는 소급 불가, 생성 계열은
   `generated_sets` 영구라 전 기간 정확(도입 시 91일 롤업 백필 완료).
+- **메뉴 노출**: 어드민 로그인 성공(또는 인증된 /admin 렌더) 시 localStorage UI 힌트
+  (`tyler_admin_ui`)를 심어 사이트 메뉴 **맨위**에 '운영 통계'를 노출한다 — 힌트는 노출용일 뿐
+  권한이 아니며(실게이트=HttpOnly 쿠키), 일반 방문자에겐 보이지 않는다. `/admin` 방문은 방문
+  통계에서 제외(운영 트래픽 오염 방지).
 - **cron**: cron-job.org(emfoa23)가 `POST /api/ops/analytics-maintain`(x-cron-secret)을
   **KST 00:05 일 1회** 호출 — 자정 직후 앵커(하이브리드에서 '어제'가 롤업 관할로 넘어가는 경계 봉인).
   maintain(3일 delete-재계산, 멱등·advisory lock) → 성공 시 prune(90일).
