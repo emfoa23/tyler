@@ -103,7 +103,7 @@ async function rpcRows<T>(fn: string, args: Record<string, unknown>): Promise<T[
 
 export type FunnelStages = Record<string, number>;
 
-/** 퍼널(윈도우 distinct 기기): visit→generate_view→generated→checked + multi_draw(2회차+). */
+/** 퍼널(윈도우 distinct 기기): visit→generate_view→generated→checked(당첨 확인) + multi_draw(2회차+). */
 export async function getFunnelWindow(window: StatWindow): Promise<FunnelStages> {
   const rows = await rpcRows<{ stage: string; devices: number | string }>("admin_funnel_window", {
     p_days: windowDays(window),

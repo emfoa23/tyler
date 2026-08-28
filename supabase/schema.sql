@@ -193,6 +193,7 @@ create table if not exists analytics_events (
   day_kst date not null,
   client_id uuid not null,
   kind text not null check (kind in ('visit', 'generate_view', 'check')),
+  -- check = '당첨만 보기'로 이미 추첨된 참여 회차 결과를 본 행위(GET /api/generate wins=1 서버 적재, 2026-08-29 재정의)
   landing text,                     -- visit: 랜딩 페이지 그룹(home|generate|history|stores|numbers|about|privacy|other)
   src_kind text, src_value text,    -- visit: current(이번 진입) 소스 — direct|referrer|utm + 정규화 값
   ft_kind text, ft_value text       -- visit: first-touch(최초 획득) 소스
@@ -458,7 +459,7 @@ begin
   limit p_cohorts;
 end $$;
 
--- 회차별 성적표 + 추첨 후 7일 내 결과 확인 기기(참여 기기 한정)
+-- 회차별 성적표 + 추첨 후 7일 내 '당첨만 보기' 확인 기기(참여 기기 한정)
 create or replace function gen_draw_report(p_draws integer default 8)
 returns table (
   draw_no integer, participants bigint, sets bigint, checked_sets bigint,
