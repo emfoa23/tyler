@@ -50,10 +50,32 @@ cron-job.org (유일한 스케줄러)
 
 ```sh
 npm install
-npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPS_SECRET
+npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPS_SECRET, ADMIN_SECRET
 ```
 
 스키마는 `supabase/schema.sql` (Supabase Management API 로 적용).
+
+## 운영 통계·어드민 (2026-08-29)
+
+`/admin`(운영자 전용, noindex) — **퍼널·유입·유저활용·생성분석** 4섹션 + [오늘|7일|30일|전체](KST 달력일) 기간 탭.
+
+- **인증**: 가입 기능이 없으므로 `ADMIN_SECRET`(Vercel env) 시크릿 로그인 — 상수시간 비교 후
+  sha256 파생 토큰을 HttpOnly 쿠키(30일)로 발급(`lib/admin-auth.ts`, `/api/admin/login`).
+- **수집**: 방문(탭 세션당 1회, 랜딩 그룹+current/first-touch 소스)·생성기 진입은 전역 비콘
+  (`components/analytics-beacon.tsx` → `POST /api/track`, 기기당 500행/일 캡), '결과 확인'은
+  `GET /api/generate` 첫 페이지 조회 시 서버가 적재(위조 방지). 기기 식별자는 제품과 같은
+  `tyler_client_id`(localStorage, `lib/client-id.ts`)를 쓰며 IP·UA·원본 URL 은 저장하지 않는다
+  (개인정보처리방침 2026-08-29 개정 고지). 반자동 사용은 `generated_sets.fixed_count`(과거 null=미상).
+- **하이브리드 규약(boss-paegi v1.06 이식)**: 카운트류 = `analytics_rollups(day_kst<오늘)` +
+  오늘 라이브 `analytics_rollup_rows_for_day(오늘)` — 하루치 집계 SQL 함수가 cron(INSERT)과
+  어드민 라이브(SELECT)의 단일 소스. 윈도우 distinct 기기·회차 리텐션·성적표는 raw 직조회 RPC
+  (`admin_funnel_window`·`gen_draw_retention`·`gen_draw_report` 등 — 일단위 분해가 안 되는 지표의
+  예외). raw 이벤트 90일 보존(`prune_analytics_events`), 롤업·기기 레지스트리(`analytics_devices`,
+  first-touch 동결)는 영구. 방문 계열 수집 시작(2026-08-29) 전 과거는 소급 불가, 생성 계열은
+  `generated_sets` 영구라 전 기간 정확(도입 시 91일 롤업 백필 완료).
+- **cron**: cron-job.org(emfoa23)가 `POST /api/ops/analytics-maintain`(x-cron-secret)을
+  **KST 00:05 일 1회** 호출 — 자정 직후 앵커(하이브리드에서 '어제'가 롤업 관할로 넘어가는 경계 봉인).
+  maintain(3일 delete-재계산, 멱등·advisory lock) → 성공 시 prune(90일).
 
 ## 운영 명령
 
