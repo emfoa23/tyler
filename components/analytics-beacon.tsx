@@ -10,6 +10,8 @@ export function AnalyticsBeacon() {
   const pathname = usePathname();
 
   useEffect(() => {
+    // 운영자 화면은 방문 통계에서 제외(운영 트래픽이 유입·퍼널을 오염시키지 않게).
+    if (pathname === "/admin" || pathname.startsWith("/admin/")) return;
     trackVisit(pathname);
     if (pathname === "/generate" || pathname.startsWith("/generate/")) {
       trackGenerateView();

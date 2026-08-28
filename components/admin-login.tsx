@@ -20,6 +20,11 @@ export function AdminLogin() {
         body: JSON.stringify({ secret }),
       });
       if (res.ok) {
+        try {
+          localStorage.setItem("tyler_admin_ui", "1"); // 메뉴 노출 힌트(권한 아님 — site-nav 참조)
+        } catch {
+          // ignore
+        }
         window.location.reload();
         return;
       }
