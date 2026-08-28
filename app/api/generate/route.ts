@@ -137,16 +137,26 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "조회에 실패했습니다." }, { status: 500 });
   }
 
-  // '결과 확인' 통계(집계 전용) — 첫 페이지 조회만 적재(페이지네이션 제외), best-effort.
-  if (!beforeId) {
+  // '당첨 확인' 통계(집계 전용) — "당첨만 보기"를 눌러(wins=1) 이미 추첨이 끝난 참여 회차의
+  // 결과를 본 기기만 적재(2026-08-29 사용자 확정 재정의 — 단순 목록 조회는 세지 않는다).
+  // 추첨 완료 판정 = checked_at 있는 세트 보유(check_generated_sets 가 대조를 마친 참여).
+  // 서버 적재(위조 방지)·첫 페이지만(페이지네이션 제외)·best-effort.
+  if (!beforeId && winsOnly) {
     try {
-      const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
-      await db.from("analytics_events").insert({ client_id: clientId, kind: "check" });
-      await db
-        .from("analytics_devices")
-        .update({ first_check_day: today })
+      const { count: drawnParticipations } = await db
+        .from("generated_sets")
+        .select("*", { count: "exact", head: true })
         .eq("client_id", clientId)
-        .is("first_check_day", null);
+        .not("checked_at", "is", null);
+      if ((drawnParticipations ?? 0) > 0) {
+        const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+        await db.from("analytics_events").insert({ client_id: clientId, kind: "check" });
+        await db
+          .from("analytics_devices")
+          .update({ first_check_day: today })
+          .eq("client_id", clientId)
+          .is("first_check_day", null);
+      }
     } catch {
       // 통계 실패 무시
     }

@@ -80,17 +80,18 @@ function BarList({ items, empty }: { items: { label: string; value: number }[]; 
 /* ── 퍼널 ── */
 
 export function FunnelSection({ stages }: { stages: FunnelStages }) {
+  // 생성기 진입(generate_view)은 방문과 변별력이 낮아 퍼널에서 제외(2026-08-29 사용자 결정)
+  // — 수집·롤업은 유지(유입 참고용), 표시만 4단계.
   const steps = [
     { key: "visit", label: "방문 기기" },
-    { key: "generate_view", label: "생성기 진입" },
     { key: "generated", label: "번호 생성" },
-    { key: "checked", label: "결과 확인" },
+    { key: "checked", label: "당첨 확인" },
     { key: "multi_draw", label: "2회차+ 생성" },
   ];
   return (
     <Card>
       <SectionTitle title="퍼널" note="기기 기준 · 전환율은 이전 단계 대비" />
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {steps.map((s, i) => {
           const value = stages[s.key] ?? 0;
           const prev = i > 0 ? (stages[steps[i - 1].key] ?? 0) : 0;
@@ -101,8 +102,9 @@ export function FunnelSection({ stages }: { stages: FunnelStages }) {
       </div>
       <p className="mt-2 text-xs leading-relaxed text-stone-400">
         기기 = 브라우저별 익명 식별자(사람 수와 다를 수 있음). 방문·진입·확인은 수집 시작
-        (2026-08-29) 이후만 집계돼요. 2회차+ = 윈도우 내 생성 기기 중 서로 다른 회차 2개 이상
-        참여.
+        (2026-08-29) 이후만 집계돼요. 당첨 확인 = &lsquo;당첨만 보기&rsquo;를 눌러 이미 추첨이
+        끝난 참여 회차의 결과를 본 기기. 2회차+ = 윈도우 내 생성 기기 중 서로 다른 회차 2개
+        이상 참여.
       </p>
     </Card>
   );
@@ -140,7 +142,7 @@ export function AcquisitionSection({
       </div>
       <div className="mt-4">
         <p className="mb-1.5 text-xs font-semibold text-stone-500">
-          최초 유입(first-touch)별 신규 기기 → 생성·확인 도달
+          최초 유입(first-touch)별 신규 기기 → 생성·당첨 확인 도달
         </p>
         {ftShown.length === 0 ? (
           <p className="text-sm text-stone-400">아직 신규 기기 데이터가 없어요.</p>
@@ -152,7 +154,7 @@ export function AcquisitionSection({
                   <th className="py-1 pr-3 font-medium">소스</th>
                   <th className="px-3 py-1 text-right font-medium">신규 기기</th>
                   <th className="px-3 py-1 text-right font-medium">생성 도달</th>
-                  <th className="px-3 py-1 text-right font-medium">확인 도달</th>
+                  <th className="px-3 py-1 text-right font-medium">당첨 확인</th>
                 </tr>
               </thead>
               <tbody>
@@ -293,7 +295,7 @@ export function GenerationSection({
 
       <div className="mt-4">
         <p className="mb-1.5 text-xs font-semibold text-stone-500">
-          회차별 성적표 <span className="font-normal">— 확인 = 추첨 후 7일 내 결과를 본 참여 기기</span>
+          회차별 성적표 <span className="font-normal">— 확인 = 추첨 후 7일 내 &lsquo;당첨만 보기&rsquo;로 결과를 본 참여 기기</span>
         </p>
         {report.length === 0 ? (
           <p className="text-sm text-stone-400">아직 생성 데이터가 없어요.</p>

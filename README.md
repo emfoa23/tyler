@@ -62,8 +62,11 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 - **인증**: 가입 기능이 없으므로 `ADMIN_SECRET`(Vercel env) 시크릿 로그인 — 상수시간 비교 후
   sha256 파생 토큰을 HttpOnly 쿠키(30일)로 발급(`lib/admin-auth.ts`, `/api/admin/login`).
 - **수집**: 방문(탭 세션당 1회, 랜딩 그룹+current/first-touch 소스)·생성기 진입은 전역 비콘
-  (`components/analytics-beacon.tsx` → `POST /api/track`, 기기당 500행/일 캡), '결과 확인'은
-  `GET /api/generate` 첫 페이지 조회 시 서버가 적재(위조 방지). 기기 식별자는 제품과 같은
+  (`components/analytics-beacon.tsx` → `POST /api/track`, 기기당 500행/일 캡), '당첨 확인'은
+  `GET /api/generate?wins=1`('당첨만 보기') 첫 페이지 조회 중 **이미 추첨이 끝난 참여 회차가
+  있는 기기**만 서버가 적재(위조 방지 — 2026-08-29 재정의, 단순 목록 조회는 세지 않음). 퍼널은
+  방문→번호 생성→당첨 확인→2회차+ 생성 4단계(생성기 진입은 방문과 변별력이 낮아 표시 제외,
+  수집은 유지). 기기 식별자는 제품과 같은
   `tyler_client_id`(localStorage, `lib/client-id.ts`)를 쓰며 IP·UA·원본 URL 은 저장하지 않는다
   (개인정보처리방침 2026-08-29 개정 고지). 반자동 사용은 `generated_sets.fixed_count`(과거 null=미상).
 - **하이브리드 규약(boss-paegi v1.06 이식)**: 카운트류 = `analytics_rollups(day_kst<오늘)` +
