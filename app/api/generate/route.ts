@@ -67,6 +67,7 @@ export async function POST(req: Request) {
     client_id: clientId,
     numbers: generateSet(fixed),
     target_draw: target,
+    fixed_count: fixed.length,
   }));
   const { data, error } = await db
     .from("generated_sets")
@@ -74,6 +75,31 @@ export async function POST(req: Request) {
     .select("id, numbers, target_draw, matched_rank, checked_at, created_at");
   if (error) {
     return NextResponse.json({ error: "저장에 실패했습니다." }, { status: 500 });
+  }
+
+  // 기기 레지스트리(방문·이용 통계) — best-effort, 실패해도 생성 응답에 영향 없음.
+  try {
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+    const { error: regError } = await db.from("analytics_devices").insert({
+      client_id: clientId,
+      first_seen_day: today,
+      last_seen_day: today,
+      first_gen_day: today,
+      last_gen_day: today,
+    });
+    if (regError) {
+      await db
+        .from("analytics_devices")
+        .update({ last_gen_day: today })
+        .eq("client_id", clientId);
+      await db
+        .from("analytics_devices")
+        .update({ first_gen_day: today })
+        .eq("client_id", clientId)
+        .is("first_gen_day", null);
+    }
+  } catch {
+    // 통계 실패 무시
   }
 
   return NextResponse.json({
@@ -109,6 +135,21 @@ export async function GET(req: Request) {
   const { data: sets, count: total, error } = await query;
   if (error) {
     return NextResponse.json({ error: "조회에 실패했습니다." }, { status: 500 });
+  }
+
+  // '결과 확인' 통계(집계 전용) — 첫 페이지 조회만 적재(페이지네이션 제외), best-effort.
+  if (!beforeId) {
+    try {
+      const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+      await db.from("analytics_events").insert({ client_id: clientId, kind: "check" });
+      await db
+        .from("analytics_devices")
+        .update({ first_check_day: today })
+        .eq("client_id", clientId)
+        .is("first_check_day", null);
+    } catch {
+      // 통계 실패 무시
+    }
   }
 
   const targets = [...new Set((sets ?? []).map((s) => s.target_draw))];

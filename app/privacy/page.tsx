@@ -24,10 +24,16 @@ export default function PrivacyPage() {
         <h2 className="font-bold">1. 처리하는 정보</h2>
         <ul className="mt-3 list-disc space-y-1.5 pl-4 text-sm leading-relaxed text-stone-600">
           <li>
-            <b>익명 기기 식별자</b> — 번호 생성 이력을 기기별로 보관하기 위해 무작위로 만든
-            식별자를 브라우저(localStorage)에 저장하고, 서버에는 이 식별자와 생성한 번호·생성
-            시각이 저장됩니다. 이 식별자는 무작위 값으로, 이용자가 누구인지와 연결할 수
-            없습니다.
+            <b>익명 기기 식별자</b> — 번호 생성 이력을 기기별로 보관하고 방문·이용 통계를
+            집계하기 위해 무작위로 만든 식별자를 브라우저(localStorage)에 저장하고, 서버에는 이
+            식별자와 생성한 번호·생성 시각이 저장됩니다. 이 식별자는 무작위 값으로, 이용자가
+            누구인지와 연결할 수 없습니다.
+          </li>
+          <li>
+            <b>방문·이용 통계</b> — 방문한 페이지 구분(홈·당첨 결과 등)과 유입 경로(검색·링크
+            출처의 도메인 또는 UTM 값, 정규화된 형태)를 기기 식별자와 함께 저장합니다. 방문
+            페이지의 주소 전체·IP·브라우저 정보는 저장하지 않으며, 통계는 집계 형태로만
+            활용합니다.
           </li>
           <li>
             <b>접속 기록</b> — 서비스 운영 과정에서 호스팅 사업자의 표준 로그(접속 IP, 요청
@@ -41,6 +47,7 @@ export default function PrivacyPage() {
         <ul className="mt-3 list-disc space-y-1.5 pl-4 text-sm leading-relaxed text-stone-600">
           <li>생성한 번호의 보관·표시와 실제 당첨번호와의 자동 대조</li>
           <li>서비스의 안정적 운영과 남용 방지(기기당 일일 생성 한도 적용)</li>
+          <li>서비스 개선을 위한 방문·이용 통계 분석(집계 형태로만 활용)</li>
         </ul>
       </section>
 
@@ -48,6 +55,10 @@ export default function PrivacyPage() {
         <h2 className="font-bold">3. 보관과 삭제</h2>
         <ul className="mt-3 list-disc space-y-1.5 pl-4 text-sm leading-relaxed text-stone-600">
           <li>번호 생성 이력은 서비스 제공을 위해 보관됩니다.</li>
+          <li>
+            방문·이용 기록의 원본은 90일 뒤 삭제되며, 이후에는 기기를 특정할 수 없는 일별
+            집계만 보관됩니다.
+          </li>
           <li>
             브라우저의 사이트 데이터(localStorage)를 삭제하면 기기와 생성 이력의 연결이
             끊어지며, 이후 새 식별자가 발급됩니다.
@@ -70,7 +81,10 @@ export default function PrivacyPage() {
       <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
         <h2 className="font-bold">5. 쿠키와 광고</h2>
         <ul className="mt-3 list-disc space-y-1.5 pl-4 text-sm leading-relaxed text-stone-600">
-          <li>서비스 자체 기능은 쿠키를 사용하지 않습니다.</li>
+          <li>
+            일반 이용자에게는 쿠키를 사용하지 않습니다. 운영자 관리 화면 로그인에만 세션 쿠키
+            1개를 사용하며, 일반 이용에는 영향이 없습니다.
+          </li>
           <li>
             서비스에 광고(Google AdSense)가 게재되는 경우, Google 을 포함한 제3자 광고
             사업자는 쿠키를 사용해 이용자의 이전 방문 기록에 기반한 광고를 게재할 수
@@ -115,7 +129,7 @@ export default function PrivacyPage() {
           </li>
           <li>방침이 변경되는 경우 이 페이지에 게시하며, 본문 하단의 시행일을 갱신합니다.</li>
         </ul>
-        <p className="mt-4 text-xs text-stone-400">시행일: 2026-08-19</p>
+        <p className="mt-4 text-xs text-stone-400">시행일: 2026-08-29 (2026-08-19 제정, 방문·이용 통계 항목 추가)</p>
       </section>
     </div>
   );

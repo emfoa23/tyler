@@ -5,6 +5,7 @@ import { BallRow } from "@/components/ball";
 import { dateShort } from "@/lib/format";
 import { RANK_LABEL, ballColor, matchedNumbers } from "@/lib/lotto";
 import type { DrawNumbers, GeneratedSet, GenerationStats } from "@/lib/types";
+import { getClientId } from "@/lib/client-id";
 
 type ApiData = {
   sets: GeneratedSet[];
@@ -16,16 +17,6 @@ type ApiData = {
 };
 
 type Meta = Pick<ApiData, "stats" | "nextTarget" | "nextTargetDate">;
-
-function getClientId(): string {
-  const KEY = "tyler_client_id";
-  let id = localStorage.getItem(KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(KEY, id);
-  }
-  return id;
-}
 
 function Pulse({ className }: { className: string }) {
   return <div className={`animate-pulse rounded bg-stone-100 ${className}`} />;

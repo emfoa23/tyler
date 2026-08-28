@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
 import { SiteNav } from "@/components/site-nav";
+import { AnalyticsBeacon } from "@/components/analytics-beacon";
 import "./globals.css";
 
 // Google AdSense 게시자 ID — 공개값(페이지 소스·ads.txt 에 노출되는 값). public/ads.txt 와 쌍.
@@ -84,6 +85,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </footer>
         <JsonLd data={JSON_LD} />
+        <AnalyticsBeacon />
         {/* SSR HTML 에 포함시켜 애드센스 소유확인 크롤러가 JS 실행 없이도 보게 한다 */}
         <script
           async
