@@ -10,6 +10,9 @@ const KINDS = new Set(["visit", "generate_view"]);
 const LANDINGS = new Set(["home", "generate", "history", "stores", "numbers", "about", "privacy", "other"]);
 const SRC_KINDS = new Set(["direct", "referrer", "utm"]);
 const DAILY_EVENT_CAP = 500; // 기기당/일 — 남용 flood 방지(정상 사용은 세션당 2행 수준)
+// 크롤러 백스톱(클라 게이트와 동일 기준) — UA 는 판별에만 쓰고 저장하지 않는다.
+const BOT_UA_RE =
+  /bot|spider|crawl|slurp|headless|lighthouse|preview|yeti|daum|petal|semrush|ahrefs|yandex|baidu|bytespider|gptbot/i;
 
 function noContent(): NextResponse {
   return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
@@ -31,6 +34,9 @@ function normSource(v: unknown): { kind: string; value: string } | null {
 }
 
 export async function POST(req: Request) {
+  const ua = req.headers.get("user-agent") ?? "";
+  if (!ua || BOT_UA_RE.test(ua)) return noContent();
+
   const body = await req.json().catch(() => ({}));
   const clientId = typeof body.clientId === "string" ? body.clientId : "";
   const kind = typeof body.kind === "string" ? body.kind : "";
