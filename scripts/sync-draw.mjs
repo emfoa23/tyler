@@ -1,6 +1,6 @@
-// 주간 동기화: 신규 회차 당첨결과 → 배출점 → 생성번호 대조 → ISR revalidate.
+// 주간 동기화: 신규 회차 당첨결과 → 생성번호 대조 → 지연 필드 → 배출점 → ISR revalidate.
 // 멱등: 새 데이터가 없으면 아무것도 바꾸지 않고 성공 종료한다
-// (토 20:50/21:05/21:30/23:05/23:30 + 일 10:00 KST 재시도 전제).
+// (토 20:40~21:30 5분 간격 + 22:00/23:00 + 일 10:00 KST 재시도 전제).
 import {
   fetchDrawWindow, fetchWins, mapDraw, mapWinRow, mapWinStore,
 } from "./lib/dhlottery.mjs";
@@ -41,7 +41,23 @@ for (;;) {
   await sleep(150);
 }
 
-// 1.5) 최신 회차 지연 필드 재보정 — 1등 구매유형(winType)은 추첨 후 ~21:02 에야 공개되고
+// 2) 생성번호 대조 — **당첨번호만 있으면 되는 작업이라 1 단계 직후에 둔다.**
+// 대조 RPC 는 draws(n1~n6·bonus)만 조인하므로 지연 필드(구매유형·판매액)·배출점과 무관하다.
+// 예전에는 배출점 루프 안에 있어서, 배출점이 미공개면 `continue` 에 걸려 대조까지 건너뛰었다
+// (1238 실측: 번호 20:50 적재 → 대조는 배출점이 열린 21:05, 사용자에겐 20분간 "추첨 전").
+// 뒤 단계(지연 필드·배출점)의 조회 실패가 대조를 굶기지 않도록 순서상으로도 앞에 둔다.
+// 미대조분(checked_at is null)만 갱신하는 멱등 RPC 라 매 실행 안전하고, 아직 번호가 없는
+// 회차는 조인 결과가 비어 0 건으로 끝난다.
+const recent = await select("draws?select=draw_no,draw_date&order=draw_no.desc&limit=3");
+for (const d of recent) {
+  const checked = await rpc("check_generated_sets", { p_draw: d.draw_no });
+  if (checked) {
+    console.log(`draw ${d.draw_no}: ${checked} generated sets checked`);
+    changed = true;
+  }
+}
+
+// 3) 최신 회차 지연 필드 재보정 — 1등 구매유형(winType)은 추첨 후 ~21:02 에야 공개되고
 // (2026-08-15 회차 미러 실측: 번호 20:43 → 당첨금·인원·판매액 20:50 → 구매유형 21:02),
 // 공개 전엔 null 이 아니라 0/0/0 으로 온다 (2026-08-22 실측 — mapDraw 가 null 로 정규화).
 // 신규 루프는 넣은 회차를 다시 안 긁으므로, 최신 회차의 구매유형(1등 당첨자가 있는데 null)·
@@ -68,9 +84,9 @@ if (needsTypes || needsSales) {
   await sleep(150);
 }
 
-// 2) 최근 회차의 배출점 보정 (결과보다 늦게 공개되는 경우를 재시도 슬롯에서 흡수)
-const recent = await select("draws?select=draw_no,draw_date&order=draw_no.desc&limit=3");
-for (const d of recent.reverse()) {
+// 4) 최근 회차의 배출점 보정 (결과보다 늦게 공개되는 경우를 재시도 슬롯에서 흡수).
+// 미공개면 그 회차만 건너뛴다 — 대조는 위(2)에서 이미 끝났으므로 여기 continue 에 안 걸린다.
+for (const d of [...recent].reverse()) {
   const wins = await fetchWins(d.draw_no);
   const total = wins.total ?? 0;
   if (!total) {
@@ -86,16 +102,10 @@ for (const d of recent.reverse()) {
     console.log(`draw ${d.draw_no}: ${total} winning-store rows stored (was ${dbCount})`);
     changed = true;
   }
-  // 3) 생성번호 대조 (미대조분만 갱신하므로 매 실행 안전)
-  const checked = await rpc("check_generated_sets", { p_draw: d.draw_no });
-  if (checked) {
-    console.log(`draw ${d.draw_no}: ${checked} generated sets checked`);
-    changed = true;
-  }
   await sleep(150);
 }
 
-// 4) 변경이 있었으면 사이트 ISR revalidate
+// 5) 변경이 있었으면 사이트 ISR revalidate
 const site = process.env.SITE_URL;
 const secret = process.env.OPS_SECRET;
 if (changed && site && secret) {
@@ -110,7 +120,7 @@ if (changed && site && secret) {
   }
 }
 
-// 5) 변경이 있었으면 IndexNow 핑 — 새 회차 페이지가 검색엔진에 빨리 잡히게 (비치명, 실패해도 성공 종료)
+// 6) 변경이 있었으면 IndexNow 핑 — 새 회차 페이지가 검색엔진에 빨리 잡히게 (비치명, 실패해도 성공 종료)
 if (changed) {
   const latestNo = (await select("draws?select=draw_no&order=draw_no.desc&limit=1"))[0]?.draw_no;
   const paths = ["/", "/history", "/stores", "/numbers", ...(latestNo ? [`/history/${latestNo}`] : [])];

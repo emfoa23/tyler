@@ -24,8 +24,8 @@
 ```
 cron-job.org (유일한 스케줄러)
   │  POST /repos/emfoa23/tyler/actions/workflows/{yml}/dispatches
-  ├─ sync-draw    토 20:50/21:05/21:30/23:05/23:30 + 일 10:00 KST (멱등 재시도)
-  │    당첨결과 upsert → 배출점 upsert → 생성번호 대조 → ISR revalidate → IndexNow 핑
+  ├─ sync-draw    토 20:40~21:30 5분 간격 + 22:00/23:00 + 일 10:00 KST (멱등 재시도)
+  │    당첨결과 upsert → 생성번호 대조 → 지연 필드 → 배출점 upsert → ISR revalidate → IndexNow 핑
   ├─ sync-stores  일요일 새벽 주 1회 — 전국 판매점 마스터 upsert + 미출현 지점 closed 마킹
   └─ keepalive    매일 — GET /api/ops/keepalive (Supabase 무료 pause 방지)
 ```
