@@ -562,3 +562,121 @@ grant execute on function gen_draw_retention(integer) to service_role;
 grant execute on function gen_draw_report(integer) to service_role;
 grant execute on function gen_device_depth(integer) to service_role;
 grant execute on function generated_number_frequency() to service_role;
+
+-- ── 자랑하기·바이럴 루프 (2026-08-29 v2) ─────────────────────────────────────
+-- 생명주기: 진입→생성→(추첨 후) 당첨만 보기 확인→자랑하기(Web Share: 이미지+text 링크)→
+-- /share/{draw} 랜딩(viral 소스)→생성 전환. 멱등 블록 — Management API 재적용 가능.
+
+alter table analytics_events add column if not exists draw_no integer;  -- share 계열만 사용
+alter table analytics_events drop constraint if exists analytics_events_kind_check;
+alter table analytics_events add constraint analytics_events_kind_check
+  check (kind in ('visit', 'generate_view', 'check', 'share', 'share_download'));
+-- share = Web Share 완료(이미지+링크), share_download = 미지원 폴백(이미지 저장+링크 복사).
+-- visit 의 src/ft kind 에 'viral'(랜딩 /share/{draw} — 레퍼러 아닌 경로 판정) 추가는 제약 없음(자유 text).
+
+alter table analytics_devices add column if not exists first_share_day date;
+
+create or replace function analytics_rollup_rows_for_day(p_day date)
+returns table (metric text, dim1 text, dim2 text, value bigint)
+language plpgsql stable security definer set search_path = public as $$
+declare
+  v_lo timestamptz;
+  v_hi timestamptz;
+begin
+  if p_day is null then
+    raise exception 'analytics_rollup_rows_for_day_invalid_day' using errcode = '22023';
+  end if;
+  v_lo := (p_day::timestamp at time zone 'Asia/Seoul');
+  v_hi := ((p_day + 1)::timestamp at time zone 'Asia/Seoul');
+  return query
+  select 'visit_total'::text, ''::text, ''::text, count(*)::bigint
+    from analytics_events e where e.kind = 'visit' and e.day_kst = p_day
+  union all
+  select 'visit_devices', '', '', count(distinct e.client_id)::bigint
+    from analytics_events e where e.kind = 'visit' and e.day_kst = p_day
+  union all
+  select 'visit_new_devices', '', '', count(*)::bigint
+    from analytics_devices d where d.first_seen_day = p_day
+  union all
+  select 'visit_by_landing', coalesce(e.landing, ''), '', count(*)::bigint
+    from analytics_events e where e.kind = 'visit' and e.day_kst = p_day group by e.landing
+  union all
+  select 'visit_by_src', coalesce(e.src_kind, ''), coalesce(e.src_value, ''), count(*)::bigint
+    from analytics_events e where e.kind = 'visit' and e.day_kst = p_day group by e.src_kind, e.src_value
+  union all
+  select 'acq_new_by_ft', coalesce(d.ft_kind, ''), coalesce(d.ft_value, ''), count(*)::bigint
+    from analytics_devices d where d.first_seen_day = p_day group by d.ft_kind, d.ft_value
+  union all
+  select 'generate_view_devices', '', '', count(distinct e.client_id)::bigint
+    from analytics_events e where e.kind = 'generate_view' and e.day_kst = p_day
+  union all
+  select 'check_devices', '', '', count(distinct e.client_id)::bigint
+    from analytics_events e where e.kind = 'check' and e.day_kst = p_day
+  union all
+  -- 자랑하기 실행(공유·저장 폴백 합산 기기/건수 + 회차 분포)
+  select 'share_devices', '', '', count(distinct e.client_id)::bigint
+    from analytics_events e where e.kind in ('share', 'share_download') and e.day_kst = p_day
+  union all
+  select 'share_actions', e.kind, '', count(*)::bigint
+    from analytics_events e where e.kind in ('share', 'share_download') and e.day_kst = p_day group by e.kind
+  union all
+  select 'share_by_draw', coalesce(e.draw_no::text, ''), '', count(*)::bigint
+    from analytics_events e where e.kind in ('share', 'share_download') and e.day_kst = p_day group by e.draw_no
+  union all
+  select 'gen_sets', '', '', count(*)::bigint
+    from generated_sets g where g.created_at >= v_lo and g.created_at < v_hi
+  union all
+  select 'gen_devices', '', '', count(distinct g.client_id)::bigint
+    from generated_sets g where g.created_at >= v_lo and g.created_at < v_hi
+  union all
+  select 'gen_new_devices', '', '', count(*)::bigint from (
+    select g.client_id, min(g.created_at) as mc from generated_sets g group by g.client_id
+  ) t where t.mc >= v_lo and t.mc < v_hi
+  union all
+  select 'gen_fixed_sets', '', '', count(*)::bigint
+    from generated_sets g
+    where g.created_at >= v_lo and g.created_at < v_hi and coalesce(g.fixed_count, 0) > 0
+  union all
+  select 'gen_by_target', g.target_draw::text, '', count(*)::bigint
+    from generated_sets g where g.created_at >= v_lo and g.created_at < v_hi group by g.target_draw
+  union all
+  select 'limit_hit_devices', '', '', count(*)::bigint from (
+    select g.client_id from generated_sets g
+    where g.created_at >= v_lo and g.created_at < v_hi
+    group by g.client_id having count(*) >= 200
+  ) t;
+end $$;
+
+-- 바이럴 루프 지표(윈도우 distinct — raw 직조회, p_days null=전체)
+create or replace function admin_viral_loop(p_days integer default null)
+returns table (metric text, devices bigint)
+language plpgsql stable security definer set search_path = public as $$
+declare
+  v_today date := (now() at time zone 'Asia/Seoul')::date;
+  v_from date;
+begin
+  if p_days is not null and p_days not between 1 and 90 then
+    raise exception 'admin_viral_loop_invalid_days' using errcode = '22023';
+  end if;
+  v_from := case when p_days is null then null else v_today - (p_days - 1) end;
+  return query
+  -- 자랑 실행 기기(공유+저장): 전체=레지스트리 / 윈도우=raw
+  select 'share_devices'::text, case when p_days is null
+    then (select count(*) from analytics_devices d where d.first_share_day is not null)
+    else (select count(distinct e.client_id) from analytics_events e
+          where e.kind in ('share', 'share_download') and e.day_kst >= v_from) end
+  union all
+  -- 공유 링크로 획득된 신규 기기(first-touch=viral)
+  select 'viral_new_devices', (
+    select count(*) from analytics_devices d
+    where d.ft_kind = 'viral' and (v_from is null or d.first_seen_day >= v_from))
+  union all
+  -- 그중 생성까지 간 기기(루프 완성)
+  select 'viral_gen_devices', (
+    select count(*) from analytics_devices d
+    where d.ft_kind = 'viral' and d.first_gen_day is not null
+      and (v_from is null or d.first_seen_day >= v_from));
+end $$;
+
+revoke execute on function admin_viral_loop(integer) from public, anon, authenticated;
+grant execute on function admin_viral_loop(integer) to service_role;

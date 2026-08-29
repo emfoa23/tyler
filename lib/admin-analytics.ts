@@ -219,3 +219,15 @@ export async function getGeneratedNumberFrequency(): Promise<NumberFrequencyRow[
   );
   return rows.map((r) => ({ num: Number(r.num) || 0, cnt: Number(r.cnt) || 0 }));
 }
+
+export type ViralLoop = Record<string, number>;
+
+/** 바이럴 루프(윈도우 distinct 기기): 자랑 실행 → viral 획득 신규 기기 → 그중 생성 도달. */
+export async function getViralLoop(window: StatWindow): Promise<ViralLoop> {
+  const rows = await rpcRows<{ metric: string; devices: number | string }>("admin_viral_loop", {
+    p_days: windowDays(window),
+  });
+  const out: ViralLoop = {};
+  for (const r of rows) out[r.metric] = Number(r.devices) || 0;
+  return out;
+}
