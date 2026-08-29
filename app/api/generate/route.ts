@@ -140,17 +140,26 @@ export async function GET(req: Request) {
   // '당첨 확인' 통계(집계 전용) — "당첨만 보기"를 눌러(wins=1) 이미 추첨이 끝난 참여 회차의
   // 결과를 본 기기만 적재(2026-08-29 사용자 확정 재정의 — 단순 목록 조회는 세지 않는다).
   // 추첨 완료 판정 = checked_at 있는 세트 보유(check_generated_sets 가 대조를 마친 참여).
+  // **어느 회차를 봤는지(draw_no)까지 함께 적재** — 그 기기가 참여한 회차 중 대조가 끝난 가장
+  // 최근 회차가 이 클릭으로 실제 결과가 보인 회차다(미대조 회차는 화면에 '추첨 전'으로 나온다).
+  // 회차를 안 남기면 성적표가 날짜창으로 추정할 수밖에 없어 인접 회차 이중 계상·추첨 전 계상이
+  // 생긴다(2026-08-29 실측) — 자랑하기(share)가 쓰는 draw_no 귀속과 같은 방식으로 통일.
   // 서버 적재(위조 방지)·첫 페이지만(페이지네이션 제외)·best-effort.
   if (!beforeId && winsOnly) {
     try {
-      const { count: drawnParticipations } = await db
+      const { data: drawn } = await db
         .from("generated_sets")
-        .select("*", { count: "exact", head: true })
+        .select("target_draw")
         .eq("client_id", clientId)
-        .not("checked_at", "is", null);
-      if ((drawnParticipations ?? 0) > 0) {
+        .not("checked_at", "is", null)
+        .order("target_draw", { ascending: false })
+        .limit(1);
+      const checkedDraw = drawn?.[0]?.target_draw ?? null;
+      if (checkedDraw !== null) {
         const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
-        await db.from("analytics_events").insert({ client_id: clientId, kind: "check" });
+        await db
+          .from("analytics_events")
+          .insert({ client_id: clientId, kind: "check", draw_no: checkedDraw });
         await db
           .from("analytics_devices")
           .update({ first_check_day: today })

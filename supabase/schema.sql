@@ -454,7 +454,10 @@ begin
   limit p_cohorts;
 end $$;
 
--- 회차별 성적표 + 추첨 후 7일 내 '당첨만 보기' 확인 기기(참여 기기 한정)
+-- 회차별 성적표 + '당첨만 보기'로 그 회차 결과를 본 기기(확인)
+-- (v5: 확인 귀속을 날짜창 → check 이벤트의 draw_no 로 교체. 날짜창은 인접 회차 창이 추첨일에
+--  겹쳐 같은 클릭이 두 회차에 이중 계상되고, 추첨 전 클릭이 그 회차 확인으로 잡히는 문제가 있었다
+--  — 2026-08-29 실측. 이제 공유(share)와 같은 draw_no 귀속 방식으로 통일한다.)
 -- (v4 재정의: 공유도 확인과 같은 기기 단위·전 기간 — share_devices. 이벤트 90일 prune 의존은 확인과 동일)
 drop function if exists gen_draw_report(integer);
 create function gen_draw_report(p_draws integer default 8)
@@ -488,14 +491,8 @@ begin
   ) a on true
   left join lateral (
     select count(distinct e.client_id) as post_check
-    from draws d
-    join analytics_events e on e.kind = 'check'
-      and e.day_kst between d.draw_date and d.draw_date + 7
-    where d.draw_no = r.target_draw
-      and exists (
-        select 1 from generated_sets g2
-        where g2.client_id = e.client_id and g2.target_draw = r.target_draw
-      )
+    from analytics_events e
+    where e.kind = 'check' and e.draw_no = r.target_draw
   ) c on true
   left join lateral (
     select count(distinct e.client_id) as share_devs
