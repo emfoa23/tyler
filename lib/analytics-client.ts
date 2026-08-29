@@ -8,7 +8,7 @@ import { getClientId } from "@/lib/client-id";
 // 페이지당 새 컨텍스트(새 client_id·direct·단발)로 방문 통계를 오염시키므로 발화 전에 거른다.
 // UA 는 판별에만 쓰고 저장하지 않는다(무저장 원칙 유지).
 const BOT_UA_RE =
-  /bot|spider|crawl|slurp|headless|lighthouse|preview|yeti|daum|petal|semrush|ahrefs|yandex|baidu|bytespider|gptbot/i;
+  /bot|spider|crawl|slurp|headless|lighthouse|preview|yeti|daum|petal|semrush|ahrefs|yandex|baidu|bytespider|gptbot|inspectiontool|googleother|google-extended|facebookexternalhit|kakaotalk-scrap|whatsapp|telegram|skype/i;
 
 export function isLikelyBot(): boolean {
   try {
@@ -91,7 +91,58 @@ export function firstTouchSource(current: Source): Source {
   return current;
 }
 
+// ── 상호작용 게이트(2026-08-29) ───────────────────────────────────────────────
+// 신분을 밝히지 않는 렌더링 크롤러가 UA 게이트를 통과해 방문을 오염시켰다(08시 21기기 배치 실측).
+// 사람의 결정적 판별자는 상호작용 — 첫 터치/스크롤/키 입력 "후"에만 큐에 쌓인 이벤트를 전송한다.
+// 렌더 후 떠나는 봇은 상호작용이 없어 아무것도 보내지 않는다. 트레이드오프: 아무 조작 없이
+// 이탈하는 진짜 바운스도 미집계(방문 = "상호작용한 방문"으로 정의 — 어드민 캡션에 명시).
+const INTERACTED_KEY = "tyler_touched";
+let pendingQueue: Record<string, unknown>[] = [];
+let listenersArmed = false;
+
+function hasInteracted(): boolean {
+  try {
+    return sessionStorage.getItem(INTERACTED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function onFirstInteraction(): void {
+  try {
+    sessionStorage.setItem(INTERACTED_KEY, "1");
+  } catch {
+    // ignore
+  }
+  const queued = pendingQueue;
+  pendingQueue = [];
+  for (const body of queued) send(body);
+}
+
+function armInteractionListeners(): void {
+  if (listenersArmed) return;
+  listenersArmed = true;
+  const fire = () => {
+    for (const t of ["pointerdown", "keydown", "scroll", "touchstart"] as const) {
+      window.removeEventListener(t, fire);
+    }
+    onFirstInteraction();
+  };
+  for (const t of ["pointerdown", "keydown", "scroll", "touchstart"] as const) {
+    window.addEventListener(t, fire, { passive: true });
+  }
+}
+
 function post(body: Record<string, unknown>): void {
+  if (hasInteracted()) {
+    send(body);
+    return;
+  }
+  pendingQueue.push(body);
+  armInteractionListeners();
+}
+
+function send(body: Record<string, unknown>): void {
   try {
     void fetch("/api/track", {
       method: "POST",

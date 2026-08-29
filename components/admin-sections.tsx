@@ -101,7 +101,7 @@ export function FunnelSection({ stages }: { stages: FunnelStages }) {
         })}
       </div>
       <p className="mt-2 text-xs leading-relaxed text-stone-400">
-        기기 = 브라우저별 익명 식별자(사람 수와 다를 수 있음). 방문·진입·확인은 수집 시작
+        기기 = 브라우저별 익명 식별자(사람 수와 다를 수 있음). 방문 = 첫 터치·스크롤 등 상호작용이 있었던 방문(봇 배제 — 무조작 이탈은 미집계). 방문·진입·확인은 수집 시작
         (2026-08-29) 이후만 집계돼요. 당첨 확인 = &lsquo;당첨만 보기&rsquo;를 눌러 이미 추첨이
         끝난 참여 회차의 결과를 본 기기. 2회차+ = 윈도우 내 생성 기기 중 서로 다른 회차 2개
         이상 참여.

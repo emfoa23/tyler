@@ -12,7 +12,7 @@ const SRC_KINDS = new Set(["direct", "referrer", "utm"]);
 const DAILY_EVENT_CAP = 500; // 기기당/일 — 남용 flood 방지(정상 사용은 세션당 2행 수준)
 // 크롤러 백스톱(클라 게이트와 동일 기준) — UA 는 판별에만 쓰고 저장하지 않는다.
 const BOT_UA_RE =
-  /bot|spider|crawl|slurp|headless|lighthouse|preview|yeti|daum|petal|semrush|ahrefs|yandex|baidu|bytespider|gptbot/i;
+  /bot|spider|crawl|slurp|headless|lighthouse|preview|yeti|daum|petal|semrush|ahrefs|yandex|baidu|bytespider|gptbot|inspectiontool|googleother|google-extended|facebookexternalhit|kakaotalk-scrap|whatsapp|telegram|skype/i;
 
 function noContent(): NextResponse {
   return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
