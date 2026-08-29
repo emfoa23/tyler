@@ -331,7 +331,7 @@ export function GenerationSection({
 
       <div className="mt-4">
         <p className="mb-1.5 text-xs font-semibold text-stone-500">
-          회차별 성적표 <span className="font-normal">— 확인 = 추첨 후 7일 내 &lsquo;당첨만 보기&rsquo;로 결과를 본 참여 기기 · 공유 = 자랑 실행 기기</span>
+          회차별 성적표 <span className="font-normal">— 확인 = &lsquo;당첨만 보기&rsquo;로 그 회차 결과를 본 기기 · 공유 = 자랑 실행 기기</span>
         </p>
         {report.length === 0 ? (
           <p className="text-sm text-stone-400">아직 생성 데이터가 없어요.</p>
