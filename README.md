@@ -62,7 +62,7 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 - **인증**: 가입 기능이 없으므로 `ADMIN_SECRET`(Vercel env) 시크릿 로그인 — 상수시간 비교 후
   sha256 파생 토큰을 HttpOnly 쿠키(30일)로 발급(`lib/admin-auth.ts`, `/api/admin/login`).
 - **수집**: 방문(탭 세션당 1회, 랜딩 그룹+current/first-touch 소스)·생성기 진입은 전역 비콘
-  (`components/analytics-beacon.tsx` → `POST /api/track`, 기기당 500행/일 캡, **봇 게이트**: 렌더링 크롤러 UA·navigator.webdriver 는 클라·서버 양쪽에서 드롭 — UA 무저장), '당첨 확인'은
+  (`components/analytics-beacon.tsx` → `POST /api/track`, 기기당 500행/일 캡, **봇 게이트**: ①렌더링 크롤러 UA·navigator.webdriver 클라·서버 양쪽 드롭(UA 무저장) ②**상호작용 게이트** — 첫 터치/스크롤/키 입력 후에만 전송(무신분 렌더러 원천 차단, 방문='상호작용한 방문')), '당첨 확인'은
   `GET /api/generate?wins=1`('당첨만 보기') 첫 페이지 조회 중 **이미 추첨이 끝난 참여 회차가
   있는 기기**만 서버가 적재(위조 방지 — 2026-08-29 재정의, 단순 목록 조회는 세지 않음). 퍼널은
   방문→번호 생성→당첨 확인→2회차+ 생성 4단계(생성기 진입은 방문과 변별력이 낮아 표시 제외,
