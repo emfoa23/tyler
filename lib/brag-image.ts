@@ -11,6 +11,27 @@ const MAX_SETS = 5; // 카드가 길어지지 않게 표시 상한(초과분은 
 const FONT = (weight: number, px: number) =>
   `${weight} ${px}px system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif`;
 
+/** 글리프 실측 기반 광학 정중앙 텍스트 — baseline "middle" 은 em 박스 기준이라 숫자가
+ *  시각적 중심에서 어긋난다(사용자 실기기 제보). actualBoundingBox 로 정확히 가운데 놓는다. */
+function centerText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  align: CanvasTextAlign = "center",
+): void {
+  ctx.textAlign = align;
+  ctx.textBaseline = "alphabetic";
+  const m = ctx.measureText(text);
+  const asc = m.actualBoundingBoxAscent || 0;
+  const desc = m.actualBoundingBoxDescent || 0;
+  // 실측 불가 환경 폴백: em 근사(대략 0.35em 상승분)
+  const dy = asc || desc ? (asc - desc) / 2 : 0.35 * parseInt(ctx.font, 10);
+  // 수평도 advance 폭이 아니라 잉크 bbox 로 보정(center 정렬일 때만 의미)
+  const dx = align === "center" ? ((m.actualBoundingBoxLeft || 0) - (m.actualBoundingBoxRight || 0)) / 2 : 0;
+  ctx.fillText(text, x + dx, y + dy);
+}
+
 function drawBall(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -25,9 +46,7 @@ function drawBall(
   ctx.fill();
   ctx.fillStyle = dimmed ? "#a8a29e" : "#ffffff"; // stone-400 vs white
   ctx.font = FONT(700, r * 1.05);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(String(n), x, y + r * 0.06);
+  centerText(ctx, String(n), x, y);
 }
 
 export type BragInput = {
@@ -106,12 +125,16 @@ export function buildBragImage(input: BragInput): Promise<Blob> {
     drawBall(ctx, bx, by, ballR, n, false);
     bx += gap;
   }
+  // '+' 는 마지막 공과 보너스 공 사이 정중앙·수직 광학 중앙(양쪽 여백 대칭)
+  const lastEdge = bx - gap + ballR;
+  const plusX = lastEdge + 30;
+  const bonusX = plusX + 30 + ballR;
   ctx.fillStyle = "#a8a29e";
-  ctx.font = FONT(700, 34);
-  ctx.textAlign = "center";
-  ctx.fillText("+", bx - 8, by + 12);
-  drawBall(ctx, bx + 58, by, ballR, draw.bonus, false);
+  ctx.font = FONT(700, 40);
+  centerText(ctx, "+", plusX, by);
+  drawBall(ctx, bonusX, by, ballR, draw.bonus, false);
   ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
 
   // 구분선
   ctx.strokeStyle = "#f5f5f4";
@@ -133,8 +156,7 @@ export function buildBragImage(input: BragInput): Promise<Blob> {
     const rank = s.matched_rank ?? 0;
     ctx.fillStyle = "#b45309";
     ctx.font = FONT(800, 42);
-    ctx.textAlign = "right";
-    ctx.fillText(RANK_LABEL[rank] ?? `${rank}등`, W - PAD, y + 14);
+    centerText(ctx, RANK_LABEL[rank] ?? `${rank}등`, W - PAD, y, "right");
     ctx.textAlign = "left";
     y += setRowH;
   }
