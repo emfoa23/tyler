@@ -430,9 +430,11 @@ begin
   order by count(*) desc;
 end $$;
 
--- 회차 코호트 리텐션: 첫 참여 회차별 기기 수 + 이후 회차 재참여(2회차+ = again_any)
-create or replace function gen_draw_retention(p_cohorts integer default 8)
-returns table (cohort_draw integer, devices bigint, again_any bigint, plus1 bigint, plus2 bigint, plus3 bigint)
+-- 회차 코호트 리텐션: 첫 참여 회차별 기기 수 + 참여 회차 수 2개/5개 이상 기기
+-- (v4 재정의: %만 있던 +1/+2/+3회차 컬럼 제거, 2회차+와 같은 포맷의 5회차+ 추가 — 시그니처 변경이라 drop)
+drop function if exists gen_draw_retention(integer);
+create function gen_draw_retention(p_cohorts integer default 8)
+returns table (cohort_draw integer, devices bigint, again_any bigint, deep5 bigint)
 language plpgsql stable security definer set search_path = public as $$
 begin
   if p_cohorts is null or p_cohorts not between 1 and 52 then
@@ -440,19 +442,12 @@ begin
   end if;
   return query
   with firsts as (
-    select g.client_id, min(g.target_draw) as cohort from generated_sets g group by g.client_id
-  ), part as (
-    select distinct g.client_id, g.target_draw from generated_sets g
+    select g.client_id, min(g.target_draw) as cohort, count(distinct g.target_draw) as ndraws
+    from generated_sets g group by g.client_id
   )
   select f.cohort, count(*)::bigint,
-    count(*) filter (where exists (
-      select 1 from part p where p.client_id = f.client_id and p.target_draw > f.cohort))::bigint,
-    count(*) filter (where exists (
-      select 1 from part p where p.client_id = f.client_id and p.target_draw = f.cohort + 1))::bigint,
-    count(*) filter (where exists (
-      select 1 from part p where p.client_id = f.client_id and p.target_draw = f.cohort + 2))::bigint,
-    count(*) filter (where exists (
-      select 1 from part p where p.client_id = f.client_id and p.target_draw = f.cohort + 3))::bigint
+    count(*) filter (where f.ndraws >= 2)::bigint,
+    count(*) filter (where f.ndraws >= 5)::bigint
   from firsts f
   group by f.cohort
   order by f.cohort desc
@@ -460,10 +455,13 @@ begin
 end $$;
 
 -- 회차별 성적표 + 추첨 후 7일 내 '당첨만 보기' 확인 기기(참여 기기 한정)
-create or replace function gen_draw_report(p_draws integer default 8)
+-- (v4 재정의: 공유도 확인과 같은 기기 단위·전 기간 — share_devices. 이벤트 90일 prune 의존은 확인과 동일)
+drop function if exists gen_draw_report(integer);
+create function gen_draw_report(p_draws integer default 8)
 returns table (
   draw_no integer, participants bigint, sets bigint, checked_sets bigint,
-  r1 bigint, r2 bigint, r3 bigint, r4 bigint, r5 bigint, post_check_devices bigint
+  r1 bigint, r2 bigint, r3 bigint, r4 bigint, r5 bigint, post_check_devices bigint,
+  share_devices bigint
 )
 language plpgsql stable security definer set search_path = public as $$
 begin
@@ -476,7 +474,7 @@ begin
   )
   select r.target_draw,
     a.participants, a.sets, a.checked_sets, a.r1, a.r2, a.r3, a.r4, a.r5,
-    coalesce(c.post_check, 0)
+    coalesce(c.post_check, 0), coalesce(sh.share_devs, 0)
   from recent r
   left join lateral (
     select count(distinct g.client_id) as participants, count(*) as sets,
@@ -499,6 +497,11 @@ begin
         where g2.client_id = e.client_id and g2.target_draw = r.target_draw
       )
   ) c on true
+  left join lateral (
+    select count(distinct e.client_id) as share_devs
+    from analytics_events e
+    where e.kind in ('share', 'share_download') and e.draw_no = r.target_draw
+  ) sh on true
   order by r.target_draw desc;
 end $$;
 
@@ -531,17 +534,6 @@ begin
   from per group by 1;
 end $$;
 
--- 생성 번호 균등성(서버 랜덤 공정성 점검 — 전 기간)
-create or replace function generated_number_frequency()
-returns table (num smallint, cnt bigint)
-language sql stable security definer set search_path = public as $$
-  select n.num::smallint, count(x.num)::bigint
-  from generate_series(1, 45) as n(num)
-  left join (select unnest(g.numbers) as num from generated_sets g) x on x.num = n.num
-  group by n.num
-  order by n.num
-$$;
-
 revoke execute on function analytics_rollup_rows_for_day(date) from public, anon, authenticated;
 revoke execute on function maintain_analytics_rollups(integer) from public, anon, authenticated;
 revoke execute on function prune_analytics_events(integer) from public, anon, authenticated;
@@ -551,7 +543,6 @@ revoke execute on function acq_ft_conversion(integer) from public, anon, authent
 revoke execute on function gen_draw_retention(integer) from public, anon, authenticated;
 revoke execute on function gen_draw_report(integer) from public, anon, authenticated;
 revoke execute on function gen_device_depth(integer) from public, anon, authenticated;
-revoke execute on function generated_number_frequency() from public, anon, authenticated;
 grant execute on function analytics_rollup_rows_for_day(date) to service_role;
 grant execute on function maintain_analytics_rollups(integer) to service_role;
 grant execute on function prune_analytics_events(integer) to service_role;
@@ -561,7 +552,6 @@ grant execute on function acq_ft_conversion(integer) to service_role;
 grant execute on function gen_draw_retention(integer) to service_role;
 grant execute on function gen_draw_report(integer) to service_role;
 grant execute on function gen_device_depth(integer) to service_role;
-grant execute on function generated_number_frequency() to service_role;
 
 -- ── 자랑하기·바이럴 루프 (2026-08-29 v2) ─────────────────────────────────────
 -- 생명주기: 진입→생성→(추첨 후) 당첨만 보기 확인→자랑하기(Web Share: 이미지+text 링크)→
@@ -613,15 +603,12 @@ begin
   select 'check_devices', '', '', count(distinct e.client_id)::bigint
     from analytics_events e where e.kind = 'check' and e.day_kst = p_day
   union all
-  -- 자랑하기 실행(공유·저장 폴백 합산 기기/건수 + 회차 분포)
+  -- 자랑하기 실행(공유·저장 폴백 합산 기기/건수)
   select 'share_devices', '', '', count(distinct e.client_id)::bigint
     from analytics_events e where e.kind in ('share', 'share_download') and e.day_kst = p_day
   union all
   select 'share_actions', e.kind, '', count(*)::bigint
     from analytics_events e where e.kind in ('share', 'share_download') and e.day_kst = p_day group by e.kind
-  union all
-  select 'share_by_draw', coalesce(e.draw_no::text, ''), '', count(*)::bigint
-    from analytics_events e where e.kind in ('share', 'share_download') and e.day_kst = p_day group by e.draw_no
   union all
   select 'gen_sets', '', '', count(*)::bigint
     from generated_sets g where g.created_at >= v_lo and g.created_at < v_hi
@@ -633,18 +620,8 @@ begin
     select g.client_id, min(g.created_at) as mc from generated_sets g group by g.client_id
   ) t where t.mc >= v_lo and t.mc < v_hi
   union all
-  select 'gen_fixed_sets', '', '', count(*)::bigint
-    from generated_sets g
-    where g.created_at >= v_lo and g.created_at < v_hi and coalesce(g.fixed_count, 0) > 0
-  union all
   select 'gen_by_target', g.target_draw::text, '', count(*)::bigint
-    from generated_sets g where g.created_at >= v_lo and g.created_at < v_hi group by g.target_draw
-  union all
-  select 'limit_hit_devices', '', '', count(*)::bigint from (
-    select g.client_id from generated_sets g
-    where g.created_at >= v_lo and g.created_at < v_hi
-    group by g.client_id having count(*) >= 200
-  ) t;
+    from generated_sets g where g.created_at >= v_lo and g.created_at < v_hi group by g.target_draw;
 end $$;
 
 -- 바이럴 루프 지표(윈도우 distinct — raw 직조회, p_days null=전체)
@@ -693,3 +670,14 @@ create table if not exists shares (
   unique (client_id, draw_no)
 );
 alter table shares enable row level security;
+
+-- ── 통계 단위 정합 (2026-08-29 v4) ──────────────────────────────────────────
+-- 성적표 공유 열이 이벤트 횟수·어드민 윈도우 종속이던 것을 확인 열과 같은
+-- 기기 단위·전 기간(gen_draw_report.share_devices)으로 통일. 리텐션은 %만 있던
+-- +1/+2/+3회차 컬럼을 제거하고 5회차+ 추가(위 두 함수 v4 재정의 주석 참조).
+-- 소비처 0 이 된 지표는 적재 중단(rows_for_day 재정의) + 기존 행 정리:
+-- share_by_draw(성적표가 share_devices 로 전환), gen_fixed_sets·limit_hit_devices(카드 제거,
+-- 사용자 결정 "유의미하지 않음" — generated_sets 영구 원본에서 언제든 재계산 가능).
+-- 생성 번호 균등성 블록도 사용자 결정으로 통삭제(RPC 포함).
+delete from analytics_rollups where metric in ('share_by_draw', 'gen_fixed_sets', 'limit_hit_devices');
+drop function if exists generated_number_frequency();

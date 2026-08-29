@@ -3,7 +3,6 @@ import type {
   FtConversionRow,
   FunnelStages,
   MetricRow,
-  NumberFrequencyRow,
   RetentionRow,
 } from "@/lib/admin-analytics";
 import { metricByDim, metricTotal } from "@/lib/admin-analytics";
@@ -32,6 +31,16 @@ function srcLabel(key: string): string {
 
 const nf = (n: number) => n.toLocaleString();
 const pct = (num: number, den: number) => (den > 0 ? `${Math.round((num / den) * 100)}%` : "—");
+
+/** 표 안 "개수 + 비율" 단일 표기 — 개수가 주, 비율은 작은 보조 텍스트. */
+function Ratio({ num, den }: { num: number; den: number }) {
+  return (
+    <>
+      {nf(num)}
+      <span className="ml-1 text-[10px] text-stone-400">{pct(num, den)}</span>
+    </>
+  );
+}
 
 export function Card({ children }: { children: React.ReactNode }) {
   return <div className="rounded-2xl border border-stone-200 bg-white p-4 sm:p-5">{children}</div>;
@@ -101,10 +110,10 @@ export function FunnelSection({ stages }: { stages: FunnelStages }) {
         })}
       </div>
       <p className="mt-2 text-xs leading-relaxed text-stone-400">
-        기기 = 브라우저별 익명 식별자(사람 수와 다를 수 있음). 방문 = 첫 터치·스크롤 등 상호작용이 있었던 방문(봇 배제 — 무조작 이탈은 미집계). 방문·진입·확인은 수집 시작
-        (2026-08-29) 이후만 집계돼요. 당첨 확인 = &lsquo;당첨만 보기&rsquo;를 눌러 이미 추첨이
-        끝난 참여 회차의 결과를 본 기기. 2회차+ = 윈도우 내 생성 기기 중 서로 다른 회차 2개
-        이상 참여.
+        기기 = 브라우저별 익명 식별자(사람 수와 다를 수 있음). 방문 = 첫 터치·스크롤 등
+        상호작용이 있었던 방문. 당첨 확인 = &lsquo;당첨만 보기&rsquo;를 눌러 이미 추첨이 끝난
+        참여 회차의 결과를 본 기기. 2회차+ = 윈도우 내 생성 기기 중 서로 다른 회차 2개 이상
+        참여.
       </p>
     </Card>
   );
@@ -165,12 +174,10 @@ export function AcquisitionSection({
                     </td>
                     <td className="px-3 py-1.5 text-right font-semibold">{nf(r.devices)}</td>
                     <td className="px-3 py-1.5 text-right">
-                      {nf(r.gen_devices)}{" "}
-                      <span className="text-amber-600">{pct(r.gen_devices, r.devices)}</span>
+                      <Ratio num={r.gen_devices} den={r.devices} />
                     </td>
                     <td className="px-3 py-1.5 text-right">
-                      {nf(r.check_devices)}{" "}
-                      <span className="text-amber-600">{pct(r.check_devices, r.devices)}</span>
+                      <Ratio num={r.check_devices} den={r.devices} />
                     </td>
                   </tr>
                 ))}
@@ -213,8 +220,8 @@ export function ViralLoopSection({
         <StatCard label="그중 생성 도달" value={nf(viralGen)} sub={pct(viralGen, viralNew)} />
       </div>
       <p className="mt-2 text-xs leading-relaxed text-stone-400">
-        윈도우 집계 근사(인과 아님). 자랑 실행 = 공유 시트 완료(또는 미지원 폴백 저장) — 시트
-        안에서 저장했는지 어디에 공유했는지는 알 수 없어요. 공유 유입은 /share 링크 랜딩 기준
+        윈도우 집계 근사(인과 아님). 자랑 실행 = 공유 시트 완료(또는 미지원 폴백 저장). 공유
+        유입은 /share 링크 랜딩 기준
         — 이미지 워터마크만 보고 직접 들어온 유입은 &lsquo;직접&rsquo;으로 잡혀요. 신규 기기
         귀속은 first-touch 기준.
       </p>
@@ -259,9 +266,7 @@ export function EngagementSection({
                   <th className="py-1 pr-3 font-medium">첫 참여</th>
                   <th className="px-3 py-1 text-right font-medium">기기</th>
                   <th className="px-3 py-1 text-right font-medium">2회차+</th>
-                  <th className="px-3 py-1 text-right font-medium">+1회차</th>
-                  <th className="px-3 py-1 text-right font-medium">+2회차</th>
-                  <th className="px-3 py-1 text-right font-medium">+3회차</th>
+                  <th className="px-3 py-1 text-right font-medium">5회차+</th>
                 </tr>
               </thead>
               <tbody>
@@ -270,12 +275,11 @@ export function EngagementSection({
                     <td className="py-1.5 pr-3 text-stone-600">{r.cohort_draw}회</td>
                     <td className="px-3 py-1.5 text-right font-semibold">{nf(r.devices)}</td>
                     <td className="px-3 py-1.5 text-right">
-                      {nf(r.again_any)}{" "}
-                      <span className="text-amber-600">{pct(r.again_any, r.devices)}</span>
+                      <Ratio num={r.again_any} den={r.devices} />
                     </td>
-                    <td className="px-3 py-1.5 text-right">{pct(r.plus1, r.devices)}</td>
-                    <td className="px-3 py-1.5 text-right">{pct(r.plus2, r.devices)}</td>
-                    <td className="px-3 py-1.5 text-right">{pct(r.plus3, r.devices)}</td>
+                    <td className="px-3 py-1.5 text-right">
+                      <Ratio num={r.deep5} den={r.devices} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -283,7 +287,8 @@ export function EngagementSection({
           </div>
         )}
         <p className="mt-1.5 text-xs text-stone-400">
-          최신 회차 코호트는 다음 추첨 전까지 재참여가 0으로 보이는 게 정상이에요.
+          2회차+/5회차+ = 해당 코호트 기기 중 서로 다른 회차 2개/5개 이상 참여. 최신 회차
+          코호트는 다음 추첨 전까지 재참여가 0으로 보이는 게 정상이에요.
         </p>
       </div>
     </Card>
@@ -297,45 +302,36 @@ export function GenerationSection({
   stages,
   report,
   depth,
-  numFreq,
 }: {
   metrics: MetricRow[];
   stages: FunnelStages;
   report: DrawReportRow[];
   depth: { key: string; value: number }[];
-  numFreq: NumberFrequencyRow[];
 }) {
   const sets = metricTotal(metrics, "gen_sets");
-  const shareByDraw = new Map(metricByDim(metrics, "share_by_draw").map((r) => [r.key, r.value]));
-  const fixedSets = metricTotal(metrics, "gen_fixed_sets");
   const newGenDevices = metricTotal(metrics, "gen_new_devices");
-  const limitHit = metricTotal(metrics, "limit_hit_devices");
-
-  const totalNums = numFreq.reduce((s, r) => s + r.cnt, 0);
-  const expected = totalNums / 45;
-  const sortedFreq = [...numFreq].sort((a, b) => b.cnt - a.cnt);
-  const maxDev =
-    expected > 0
-      ? Math.max(...numFreq.map((r) => Math.abs(r.cnt - expected) / expected))
-      : 0;
+  const genDevices = stages.generated ?? 0;
 
   return (
     <Card>
       <SectionTitle title="생성분석" note="서버 무작위 생성 · 당첨 대조 포함" />
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <StatCard label="생성 세트" value={nf(sets)} />
-        <StatCard label="신규 생성 기기" value={nf(newGenDevices)} />
+        <StatCard label="생성 기기" value={nf(genDevices)} />
         <StatCard
-          label="반자동 세트"
-          value={nf(fixedSets)}
-          sub={sets > 0 ? pct(fixedSets, sets) : undefined}
+          label="신규 생성 기기"
+          value={nf(newGenDevices)}
+          sub={genDevices > 0 ? `생성 기기의 ${pct(newGenDevices, genDevices)}` : undefined}
         />
-        <StatCard label="한도(200) 도달 기기" value={nf(limitHit)} />
+        <StatCard
+          label="기기당 세트"
+          value={genDevices > 0 ? (sets / genDevices).toFixed(1) : "—"}
+        />
       </div>
 
       <div className="mt-4">
         <p className="mb-1.5 text-xs font-semibold text-stone-500">
-          회차별 성적표 <span className="font-normal">— 확인 = 추첨 후 7일 내 &lsquo;당첨만 보기&rsquo;로 결과를 본 참여 기기</span>
+          회차별 성적표 <span className="font-normal">— 확인 = 추첨 후 7일 내 &lsquo;당첨만 보기&rsquo;로 결과를 본 참여 기기 · 공유 = 자랑 실행 기기</span>
         </p>
         {report.length === 0 ? (
           <p className="text-sm text-stone-400">아직 생성 데이터가 없어요.</p>
@@ -370,12 +366,11 @@ export function GenerationSection({
                         {undrawn ? "—" : nf(r.r1 + r.r2 + r.r3)}
                       </td>
                       <td className="px-3 py-1.5 text-right">
-                        {nf(r.post_check_devices)}{" "}
-                        <span className="text-amber-600">
-                          {pct(r.post_check_devices, r.participants)}
-                        </span>
+                        <Ratio num={r.post_check_devices} den={r.participants} />
                       </td>
-                      <td className="px-3 py-1.5 text-right">{nf(shareByDraw.get(String(r.draw_no)) ?? 0)}</td>
+                      <td className="px-3 py-1.5 text-right">
+                        <Ratio num={r.share_devices} den={r.participants} />
+                      </td>
                     </tr>
                   );
                 })}
@@ -385,38 +380,12 @@ export function GenerationSection({
         )}
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div>
-          <p className="mb-1.5 text-xs font-semibold text-stone-500">기기당 생성 세트수 분포</p>
-          <BarList
-            items={depth.map((d) => ({ label: `${d.key}세트`, value: d.value }))}
-            empty="아직 생성 데이터가 없어요."
-          />
-        </div>
-        <div>
-          <p className="mb-1.5 text-xs font-semibold text-stone-500">
-            생성 번호 균등성 <span className="font-normal">— 전 기간, 기대 대비 편차</span>
-          </p>
-          {totalNums === 0 ? (
-            <p className="text-sm text-stone-400">아직 생성 데이터가 없어요.</p>
-          ) : (
-            <div className="space-y-1 text-sm text-stone-600">
-              <p>
-                번호당 기대 <b className="tabular-nums">{expected.toFixed(1)}</b>회 · 최대 편차{" "}
-                <b className="tabular-nums">{(maxDev * 100).toFixed(1)}%</b>
-              </p>
-              <p className="text-xs text-stone-500">
-                최다: {sortedFreq.slice(0, 3).map((r) => `${r.num}(${r.cnt})`).join(" · ")}
-              </p>
-              <p className="text-xs text-stone-500">
-                최소: {sortedFreq.slice(-3).reverse().map((r) => `${r.num}(${r.cnt})`).join(" · ")}
-              </p>
-              <p className="text-xs text-stone-400">
-                반자동 고정번호가 포함된 분포라 인기 번호가 편차를 만들 수 있어요. 표본이 적을수록 편차가 커 보이는 것도 자연스러워요(참고 지표).
-              </p>
-            </div>
-          )}
-        </div>
+      <div className="mt-4">
+        <p className="mb-1.5 text-xs font-semibold text-stone-500">기기당 생성 세트수 분포</p>
+        <BarList
+          items={depth.map((d) => ({ label: `${d.key}세트`, value: d.value }))}
+          empty="아직 생성 데이터가 없어요."
+        />
       </div>
     </Card>
   );
