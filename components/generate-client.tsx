@@ -6,6 +6,7 @@ import { dateShort } from "@/lib/format";
 import { RANK_LABEL, ballColor, matchedNumbers } from "@/lib/lotto";
 import type { DrawNumbers, GeneratedSet, GenerationStats } from "@/lib/types";
 import { getClientId } from "@/lib/client-id";
+import { BragButton } from "@/components/brag-button";
 
 type ApiData = {
   sets: GeneratedSet[];
@@ -320,13 +321,18 @@ export function GenerateClient() {
               const draw = draws[target];
               return (
                 <div key={target} className="rounded-2xl border border-stone-200 bg-white p-4">
-                  <div className="flex items-baseline justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
                     <h3 className="text-sm font-semibold">{target}회 대상</h3>
-                    {draw && (
-                      <span className="text-xs text-stone-400">
-                        당첨번호 {dateShort(draw.draw_date)}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {draw && (
+                        <span className="text-xs text-stone-400">
+                          당첨번호 {dateShort(draw.draw_date)}
+                        </span>
+                      )}
+                      {winsOnly && draw && (
+                        <BragButton target={target} drawDate={draw.draw_date} draw={draw} sets={sets} />
+                      )}
+                    </div>
                   </div>
                   {draw && (
                     <div className="mt-2">

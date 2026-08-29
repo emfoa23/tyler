@@ -23,7 +23,7 @@ const FT_TTL_MS = 90 * 86400_000;
 const SESSION_VISIT_KEY = "tyler_v";
 const SESSION_GENERATE_VIEW_KEY = "tyler_gv";
 
-export type Source = { kind: "direct" | "referrer" | "utm"; value: string };
+export type Source = { kind: "direct" | "referrer" | "utm" | "viral"; value: string };
 
 export const LANDING_GROUPS = [
   "home",
@@ -31,6 +31,7 @@ export const LANDING_GROUPS = [
   "history",
   "stores",
   "numbers",
+  "share",
   "about",
   "privacy",
   "other",
@@ -53,6 +54,10 @@ function normalizeValue(raw: string): string | null {
 export function currentSource(location: Location, referrer: string): Source {
   const utm = normalizeValue(new URLSearchParams(location.search).get("utm_source") ?? "");
   if (utm) return { kind: "utm", value: utm };
+  // 자랑하기 링크 착지 = viral(레퍼러가 아닌 랜딩 경로 판정 — 인앱 브라우저의 레퍼러 소실 무관)
+  if (location.pathname === "/share" || location.pathname.startsWith("/share/")) {
+    return { kind: "viral", value: "share" };
+  }
   try {
     if (referrer) {
       const host = new URL(referrer).hostname.toLowerCase();
@@ -73,7 +78,7 @@ export function firstTouchSource(current: Source): Source {
     if (raw) {
       const saved = JSON.parse(raw) as { k?: string; v?: string; ts?: number };
       if (
-        (saved.k === "direct" || saved.k === "referrer" || saved.k === "utm") &&
+        (saved.k === "direct" || saved.k === "referrer" || saved.k === "utm" || saved.k === "viral") &&
         typeof saved.v === "string" &&
         typeof saved.ts === "number" &&
         Date.now() - saved.ts < FT_TTL_MS
@@ -182,6 +187,16 @@ export function trackGenerateView(): void {
     if (sessionStorage.getItem(SESSION_GENERATE_VIEW_KEY)) return;
     sessionStorage.setItem(SESSION_GENERATE_VIEW_KEY, "1");
     post({ clientId: getClientId(), kind: "generate_view" });
+  } catch {
+    // ignore
+  }
+}
+
+/** 자랑하기 실행 — share(웹 공유 완료)/share_download(폴백). 클릭 기반이라 상호작용 게이트는 이미 통과. */
+export function trackShare(kind: "share" | "share_download", drawNo: number): void {
+  try {
+    if (isLikelyBot()) return;
+    post({ clientId: getClientId(), kind, drawNo });
   } catch {
     // ignore
   }

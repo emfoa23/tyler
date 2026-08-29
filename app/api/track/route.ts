@@ -6,9 +6,9 @@ export const dynamic = "force-dynamic";
 // 방문·이용 통계 수집(집계 전용) — 공개 라우트. 성공/드롭 모두 204(수집 실패가 이용을 막지 않는다).
 // 'check' 는 클라이언트가 보낼 수 없다(GET /api/generate 가 서버에서 적재 — 위조 방지).
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const KINDS = new Set(["visit", "generate_view"]);
-const LANDINGS = new Set(["home", "generate", "history", "stores", "numbers", "about", "privacy", "other"]);
-const SRC_KINDS = new Set(["direct", "referrer", "utm"]);
+const KINDS = new Set(["visit", "generate_view", "share", "share_download"]);
+const LANDINGS = new Set(["home", "generate", "history", "stores", "numbers", "share", "about", "privacy", "other"]);
+const SRC_KINDS = new Set(["direct", "referrer", "utm", "viral"]);
 const DAILY_EVENT_CAP = 500; // 기기당/일 — 남용 flood 방지(정상 사용은 세션당 2행 수준)
 // 크롤러 백스톱(클라 게이트와 동일 기준) — UA 는 판별에만 쓰고 저장하지 않는다.
 const BOT_UA_RE =
@@ -80,13 +80,23 @@ export async function POST(req: Request) {
         .eq("client_id", clientId)
         .lt("last_seen_day", today);
     }
-  } else {
+  } else if (kind === "generate_view") {
     await db.from("analytics_events").insert({ client_id: clientId, kind: "generate_view" });
     await db
       .from("analytics_devices")
       .update({ first_generate_view_day: today })
       .eq("client_id", clientId)
       .is("first_generate_view_day", null);
+  } else {
+    // 자랑하기 실행(share|share_download) — 회차는 유효 범위만 기록, 아니면 null
+    const rawDraw = Number(body.drawNo);
+    const drawNo = Number.isInteger(rawDraw) && rawDraw >= 1 && rawDraw <= 9999 ? rawDraw : null;
+    await db.from("analytics_events").insert({ client_id: clientId, kind, draw_no: drawNo });
+    await db
+      .from("analytics_devices")
+      .update({ first_share_day: today })
+      .eq("client_id", clientId)
+      .is("first_share_day", null);
   }
   return noContent();
 }

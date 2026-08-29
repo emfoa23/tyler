@@ -11,7 +11,7 @@ import { metricByDim, metricTotal } from "@/lib/admin-analytics";
 // 운영 통계 표시 컴포넌트(서버) — 차트 라이브러리 없이 카드·CSS 바·테이블.
 // 사이트 톤(white/stone/amber) 유지. 넓은 테이블은 overflow-x-auto(375px 무깨짐 규칙).
 
-const SRC_KO: Record<string, string> = { direct: "직접", referrer: "레퍼러", utm: "UTM" };
+const SRC_KO: Record<string, string> = { direct: "직접", referrer: "레퍼러", utm: "UTM", viral: "공유 링크" };
 const LANDING_KO: Record<string, string> = {
   home: "홈",
   generate: "번호 생성",
@@ -26,7 +26,7 @@ const LANDING_KO: Record<string, string> = {
 function srcLabel(key: string): string {
   const [kind, value] = key.split(" · ");
   const k = SRC_KO[kind] ?? kind;
-  if (!value || kind === "direct") return k;
+  if (!value || kind === "direct" || kind === "viral") return k;
   return `${k} · ${value}`;
 }
 
@@ -183,6 +183,48 @@ export function AcquisitionSection({
   );
 }
 
+/* ── 바이럴 루프 ── */
+
+export function ViralLoopSection({
+  metrics,
+  stages,
+  loop,
+}: {
+  metrics: MetricRow[];
+  stages: FunnelStages;
+  loop: Record<string, number>;
+}) {
+  const shareCount = metricTotal(metrics, "share_actions");
+  const byAction = new Map(metricByDim(metrics, "share_actions").map((r) => [r.key, r.value]));
+  const checked = stages.checked ?? 0;
+  const shareDevices = loop.share_devices ?? 0;
+  const viralNew = loop.viral_new_devices ?? 0;
+  const viralGen = loop.viral_gen_devices ?? 0;
+  return (
+    <Card>
+      <SectionTitle title="바이럴 루프" note="당첨 확인 → 자랑하기 → 공유 유입 → 생성" />
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <StatCard label="당첨 확인 기기" value={nf(checked)} />
+        <StatCard
+          label="자랑 실행 기기"
+          value={nf(shareDevices)}
+          sub={
+            shareCount > 0
+              ? `공유 ${nf(byAction.get("share") ?? 0)} · 저장 ${nf(byAction.get("share_download") ?? 0)}`
+              : undefined
+          }
+        />
+        <StatCard label="공유 유입 신규 기기" value={nf(viralNew)} />
+        <StatCard label="그중 생성 도달" value={nf(viralGen)} sub={pct(viralGen, viralNew)} />
+      </div>
+      <p className="mt-2 text-xs leading-relaxed text-stone-400">
+        윈도우 집계 근사(인과 아님). 공유 유입은 /share 링크 랜딩 기준 — 이미지 워터마크만 보고
+        직접 들어온 유입은 &lsquo;직접&rsquo;으로 잡혀요. 신규 기기 귀속은 first-touch 기준.
+      </p>
+    </Card>
+  );
+}
+
 /* ── 유저활용 ── */
 
 export function EngagementSection({
@@ -267,6 +309,7 @@ export function GenerationSection({
   numFreq: NumberFrequencyRow[];
 }) {
   const sets = metricTotal(metrics, "gen_sets");
+  const shareByDraw = new Map(metricByDim(metrics, "share_by_draw").map((r) => [r.key, r.value]));
   const fixedSets = metricTotal(metrics, "gen_fixed_sets");
   const newGenDevices = metricTotal(metrics, "gen_new_devices");
   const limitHit = metricTotal(metrics, "limit_hit_devices");
@@ -311,6 +354,7 @@ export function GenerationSection({
                   <th className="px-3 py-1 text-right font-medium">4등</th>
                   <th className="px-3 py-1 text-right font-medium">3등+</th>
                   <th className="px-3 py-1 text-right font-medium">확인</th>
+                  <th className="px-3 py-1 text-right font-medium">공유</th>
                 </tr>
               </thead>
               <tbody>
@@ -334,6 +378,7 @@ export function GenerationSection({
                           {pct(r.post_check_devices, r.participants)}
                         </span>
                       </td>
+                      <td className="px-3 py-1.5 text-right">{nf(shareByDraw.get(String(r.draw_no)) ?? 0)}</td>
                     </tr>
                   );
                 })}

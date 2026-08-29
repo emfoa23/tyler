@@ -11,6 +11,7 @@ import {
   getFunnelWindow,
   getGeneratedNumberFrequency,
   getReturningVisitDevices,
+  getViralLoop,
   parseStatWindow,
   statWindowLabel,
 } from "@/lib/admin-analytics";
@@ -22,6 +23,7 @@ import {
   EngagementSection,
   FunnelSection,
   GenerationSection,
+  ViralLoopSection,
 } from "@/components/admin-sections";
 
 export const dynamic = "force-dynamic";
@@ -51,16 +53,18 @@ export default async function AdminPage({
   const sp = await searchParams;
   const window = parseStatWindow(sp.days);
 
-  const [metrics, stages, returning, ft, retention, report, depth, numFreq] = await Promise.all([
-    fetchWindowMetrics(window),
-    getFunnelWindow(window),
-    getReturningVisitDevices(window),
-    getFtConversion(window),
-    getDrawRetention(8),
-    getDrawReport(8),
-    getDeviceDepth(window),
-    getGeneratedNumberFrequency(),
-  ]);
+  const [metrics, stages, returning, ft, retention, report, depth, numFreq, loop] =
+    await Promise.all([
+      fetchWindowMetrics(window),
+      getFunnelWindow(window),
+      getReturningVisitDevices(window),
+      getFtConversion(window),
+      getDrawRetention(8),
+      getDrawReport(8),
+      getDeviceDepth(window),
+      getGeneratedNumberFrequency(),
+      getViralLoop(window),
+    ]);
 
   return (
     <div className="space-y-4">
@@ -77,6 +81,7 @@ export default async function AdminPage({
 
       <FunnelSection stages={stages} />
       <AcquisitionSection metrics={metrics} ft={ft} />
+      <ViralLoopSection metrics={metrics} stages={stages} loop={loop} />
       <EngagementSection metrics={metrics} stages={stages} returning={returning} retention={retention} />
       <GenerationSection
         metrics={metrics}

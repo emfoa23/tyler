@@ -55,6 +55,18 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 
 스키마는 `supabase/schema.sql` (Supabase Management API 로 적용).
 
+## 자랑하기·바이럴 루프 (2026-08-29)
+
+당첨만 보기에서 당첨 회차마다 **자랑하기** — 클릭 즉시 캔버스로 자랑 카드를 그려(회차·등수 요약·
+당첨번호·맞춘 번호 하이라이트·`lottogen.click` 워터마크, `lib/brag-image.ts`) **Web Share 시트**를
+연다(`files` + `text`=링크만 — url 필드는 안드로이드에서 text 와 동일 슬롯이라 중복 방지 차원에서
+미사용, 저장/공유 선택은 OS 시트 몫). 사용자 취소(AbortError)는 무집계, 그 외 실패·미지원은
+이미지 다운로드+링크 클립보드 폴백. 링크 착지 `/share/{draw}`(noindex, title "N회 당첨 인증")는
+회차 당첨번호 미리보기 + [나도 번호 만들러 가기]/[N회 당첨 결과 보기]. 수집: `share`/`share_download`
+이벤트(+`draw_no`)·`/share` 랜딩=viral 소스(레퍼러 아닌 경로 판정 — 인앱 레퍼러 소실 무관)·기기
+`first_share_day`. 어드민 "바이럴 루프" 섹션이 당첨 확인→자랑 실행→공유 유입 신규 기기→생성 도달을
+윈도우별로 보여주고 성적표에 회차별 공유 수를 병기한다(이미지-only 유입은 direct 로 잡히는 한계 각주).
+
 ## 운영 통계·어드민 (2026-08-29)
 
 `/admin`(운영자 전용, noindex) — **퍼널·유입·유저활용·생성분석** 4섹션 + [오늘|7일|30일|전체](KST 달력일) 기간 탭.
