@@ -29,11 +29,6 @@ export const STAT_WINDOW_TABS: readonly { window: StatWindow; label: string }[] 
   { window: "all", label: "전체" },
 ];
 
-export function statWindowLabel(window: StatWindow): string {
-  if (window === 1) return "오늘(KST, 실시간)";
-  if (window === "all") return "전체 기간";
-  return `최근 ${window}일(KST 자정 기준)`;
-}
 
 /** KST 기준 offsetDays 일 전 날짜(YYYY-MM-DD). */
 export function kstDate(offsetDays = 0): string {
@@ -147,9 +142,7 @@ export type RetentionRow = {
   cohort_draw: number;
   devices: number;
   again_any: number;
-  plus1: number;
-  plus2: number;
-  plus3: number;
+  deep5: number;
 };
 
 /** 회차 코호트 리텐션(첫 참여 회차 기준, 전 기간 — generated_sets 영구라 정확). */
@@ -161,9 +154,7 @@ export async function getDrawRetention(cohorts = 8): Promise<RetentionRow[]> {
     cohort_draw: Number(r.cohort_draw) || 0,
     devices: Number(r.devices) || 0,
     again_any: Number(r.again_any) || 0,
-    plus1: Number(r.plus1) || 0,
-    plus2: Number(r.plus2) || 0,
-    plus3: Number(r.plus3) || 0,
+    deep5: Number(r.deep5) || 0,
   }));
 }
 
@@ -178,6 +169,7 @@ export type DrawReportRow = {
   r4: number;
   r5: number;
   post_check_devices: number;
+  share_devices: number;
 };
 
 /** 회차별 성적표 + 추첨 후 7일 내 결과 확인 기기. */
@@ -194,6 +186,7 @@ export async function getDrawReport(draws = 8): Promise<DrawReportRow[]> {
     r4: Number(r.r4) || 0,
     r5: Number(r.r5) || 0,
     post_check_devices: Number(r.post_check_devices) || 0,
+    share_devices: Number(r.share_devices) || 0,
   }));
 }
 
@@ -209,16 +202,6 @@ export async function getDeviceDepth(window: StatWindow): Promise<{ key: string;
     .sort((a, b) => DEPTH_ORDER.indexOf(a.key) - DEPTH_ORDER.indexOf(b.key));
 }
 
-export type NumberFrequencyRow = { num: number; cnt: number };
-
-/** 생성 번호 균등성(전 기간) — 서버 랜덤 공정성 점검. */
-export async function getGeneratedNumberFrequency(): Promise<NumberFrequencyRow[]> {
-  const rows = await rpcRows<{ num: number | string; cnt: number | string }>(
-    "generated_number_frequency",
-    {},
-  );
-  return rows.map((r) => ({ num: Number(r.num) || 0, cnt: Number(r.cnt) || 0 }));
-}
 
 export type ViralLoop = Record<string, number>;
 

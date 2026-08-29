@@ -9,11 +9,9 @@ import {
   getDrawRetention,
   getFtConversion,
   getFunnelWindow,
-  getGeneratedNumberFrequency,
   getReturningVisitDevices,
   getViralLoop,
   parseStatWindow,
-  statWindowLabel,
 } from "@/lib/admin-analytics";
 import { AdminLogin } from "@/components/admin-login";
 import { AdminUiMarker } from "@/components/admin-ui-marker";
@@ -53,7 +51,7 @@ export default async function AdminPage({
   const sp = await searchParams;
   const window = parseStatWindow(sp.days);
 
-  const [metrics, stages, returning, ft, retention, report, depth, numFreq, loop] =
+  const [metrics, stages, returning, ft, retention, report, depth, loop] =
     await Promise.all([
       fetchWindowMetrics(window),
       getFunnelWindow(window),
@@ -62,7 +60,6 @@ export default async function AdminPage({
       getDrawRetention(8),
       getDrawReport(8),
       getDeviceDepth(window),
-      getGeneratedNumberFrequency(),
       getViralLoop(window),
     ]);
 
@@ -74,22 +71,14 @@ export default async function AdminPage({
         <AdminPeriodTabs current={window} />
       </div>
       <p className="text-xs leading-relaxed text-stone-400">
-        {statWindowLabel(window)} · 기기(브라우저) 기준. 오늘은 실시간, 어제까지는 일 단위 확정
-        집계예요. 방문·진입·확인 수집은 2026-08-29 시작(그 전 과거는 비어 있음), 생성·리텐션은 전
-        기간 정확해요.
+        오늘은 실시간, 어제까지는 일 단위 확정 집계예요.
       </p>
 
       <FunnelSection stages={stages} />
       <AcquisitionSection metrics={metrics} ft={ft} />
       <ViralLoopSection metrics={metrics} stages={stages} loop={loop} />
       <EngagementSection metrics={metrics} stages={stages} returning={returning} retention={retention} />
-      <GenerationSection
-        metrics={metrics}
-        stages={stages}
-        report={report}
-        depth={depth}
-        numFreq={numFreq}
-      />
+      <GenerationSection metrics={metrics} stages={stages} report={report} depth={depth} />
     </div>
   );
 }

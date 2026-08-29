@@ -89,6 +89,11 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
   예외). raw 이벤트 90일 보존(`prune_analytics_events`), 롤업·기기 레지스트리(`analytics_devices`,
   first-touch 동결)는 영구. 방문 계열 수집 시작(2026-08-29) 전 과거는 소급 불가, 생성 계열은
   `generated_sets` 영구라 전 기간 정확(도입 시 91일 롤업 백필 완료).
+- **단위 규약(2026-08-29 v4)**: 표 안 "개수+비율"은 개수가 주·비율은 작은 보조 텍스트(단일 `Ratio`
+  표기). 성적표 '공유'는 확인과 같은 **기기 단위·전 기간**(`gen_draw_report.share_devices` — 이벤트
+  90일 관측 의존은 확인과 동일). 리텐션은 참여 회차 수 기준 2회차+/5회차+ 두 컬럼. 소비처가 없어진
+  롤업 지표(share_by_draw·gen_fixed_sets·limit_hit_devices)와 생성 번호 균등성 RPC 는 제거
+  (전부 `generated_sets` 영구 원본에서 재계산 가능 — 데이터 손실 없음).
 - **메뉴 노출**: 어드민 로그인 성공(또는 인증된 /admin 렌더) 시 localStorage UI 힌트
   (`tyler_admin_ui`)를 심어 사이트 메뉴 **맨위**에 '운영 통계'를 노출한다 — 힌트는 노출용일 뿐
   권한이 아니며(실게이트=HttpOnly 쿠키), 일반 방문자에겐 보이지 않는다. `/admin` 방문은 방문
