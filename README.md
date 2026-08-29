@@ -61,9 +61,10 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 당첨번호·맞춘 번호 하이라이트·`lottogen.click` 워터마크, `lib/brag-image.ts`) **Web Share 시트**를
 연다(`files` + `text`=링크만 — url 필드는 안드로이드에서 text 와 동일 슬롯이라 중복 방지 차원에서
 미사용, 저장/공유 선택은 OS 시트 몫). 사용자 취소(AbortError)는 무집계, 그 외 실패·미지원은
-이미지 다운로드+링크 클립보드 폴백. 링크 착지 `/share/{draw}`(noindex, title "N회 당첨 인증")는
-회차 당첨번호 미리보기 + [나도 번호 만들러 가기]/[N회 당첨 결과 보기]. 수집: `share`/`share_download`
-이벤트(+`draw_no`)·`/share` 랜딩=viral 소스(레퍼러 아닌 경로 판정 — 인앱 레퍼러 소실 무관)·기기
+이미지 다운로드+링크 클립보드 폴백. 링크 착지 `/share/{token}`(noindex, title "N회 당첨 인증")은 **그 기기의 해당 회차 당첨 내역**
+(당첨번호·맞춘 번호 하이라이트·등수)을 보여준다 — 토큰은 자랑 시점 `POST /api/share` 가 발급
+((기기,회차) 당 1행 upsert, client_id 는 URL 비노출·당첨 실존 검증). 회차 일반 착지는 없음. 수집: `share`(공유 시트 완료 — 시트 안 행동은 관측 불가)/`share_download`(미지원 폴백)
+이벤트(+`draw_no`, 어드민은 합산 '자랑 실행'으로 표기)·`/share` 랜딩=viral 소스(레퍼러 아닌 경로 판정 — 인앱 레퍼러 소실 무관)·기기
 `first_share_day`. 어드민 "바이럴 루프" 섹션이 당첨 확인→자랑 실행→공유 유입 신규 기기→생성 도달을
 윈도우별로 보여주고 성적표에 회차별 공유 수를 병기한다(이미지-only 유입은 direct 로 잡히는 한계 각주).
 

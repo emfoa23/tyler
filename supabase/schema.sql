@@ -680,3 +680,16 @@ end $$;
 
 revoke execute on function admin_viral_loop(integer) from public, anon, authenticated;
 grant execute on function admin_viral_loop(integer) to service_role;
+
+-- ── 자랑 공유 토큰 (2026-08-29 v3) ──────────────────────────────────────────
+-- 공유 링크는 "그 사람의 당첨 내역" 페이지로 랜딩해야 한다(사용자 확정). client_id 를 URL 에
+-- 노출하면 공개 GET(clientId 기반)으로 전체 이력이 열리므로, 자랑 시점에 무작위 토큰을 발급해
+-- 토큰→(기기, 회차)만 가리키게 한다. (기기, 회차) 당 1행 upsert — 반복 자랑도 같은 URL.
+create table if not exists shares (
+  token text primary key,
+  client_id uuid not null,
+  draw_no integer not null,
+  created_at timestamptz not null default now(),
+  unique (client_id, draw_no)
+);
+alter table shares enable row level security;

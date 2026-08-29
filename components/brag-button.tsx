@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { buildBragImage } from "@/lib/brag-image";
 import { trackShare } from "@/lib/analytics-client";
+import { getClientId } from "@/lib/client-id";
 import type { DrawNumbers, GeneratedSet } from "@/lib/types";
 
 // 자랑하기 — 클릭 즉시 이미지 생성 → Web Share 시트(이미지 + text=링크만, url 필드 미사용:
@@ -20,7 +21,7 @@ export function BragButton({
   draw: DrawNumbers;
   sets: GeneratedSet[];
 }) {
-  const [state, setState] = useState<"idle" | "busy" | "copied">("idle");
+  const [state, setState] = useState<"idle" | "busy" | "copied" | "error">("idle");
   const wins = sets.filter((s) => (s.matched_rank ?? 0) >= 1);
   if (wins.length === 0) return null; // 낙첨 회차는 자랑 스킵(사용자 확정)
 
@@ -28,9 +29,26 @@ export function BragButton({
     if (state === "busy") return;
     setState("busy");
     try {
-      const blob = await buildBragImage({ target, drawDate, draw, sets: wins });
+      // 토큰 발급(개인화 착지)과 이미지 생성을 병렬로 — share() 의 user-activation 창 안에 끝낸다.
+      const [blob, token] = await Promise.all([
+        buildBragImage({ target, drawDate, draw, sets: wins }),
+        fetch("/api/share", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ clientId: getClientId(), drawNo: target }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((b) => (typeof b?.token === "string" ? b.token : null))
+          .catch(() => null),
+      ]);
+      if (!token) {
+        // 착지 페이지 없는 공유는 무의미 — 짧게 알리고 종료(레거시 회차 착지는 제거됨)
+        setState("error");
+        window.setTimeout(() => setState("idle"), 2500);
+        return;
+      }
       const file = new File([blob], `lottogen-${target}-win.png`, { type: "image/png" });
-      const link = `${window.location.origin}/share/${target}`;
+      const link = `${window.location.origin}/share/${token}`;
 
       // 폴백: 이미지 저장 + 링크 복사 (Web Share 미지원, 또는 취소가 아닌 share 실패)
       const fallback = async () => {
@@ -77,7 +95,13 @@ export function BragButton({
       disabled={state === "busy"}
       className="shrink-0 whitespace-nowrap rounded-lg bg-amber-400 px-2.5 py-1 text-xs font-bold text-stone-900 transition hover:bg-amber-300 disabled:opacity-50"
     >
-      {state === "copied" ? "이미지 저장 · 링크 복사됨" : state === "busy" ? "만드는 중…" : "자랑하기"}
+      {state === "copied"
+        ? "이미지 저장 · 링크 복사됨"
+        : state === "error"
+          ? "잠시 후 다시 시도해주세요"
+          : state === "busy"
+            ? "만드는 중…"
+            : "자랑하기"}
     </button>
   );
 }
