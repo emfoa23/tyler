@@ -195,7 +195,6 @@ export function ViralLoopSection({
   loop: Record<string, number>;
 }) {
   const shareCount = metricTotal(metrics, "share_actions");
-  const byAction = new Map(metricByDim(metrics, "share_actions").map((r) => [r.key, r.value]));
   const checked = stages.checked ?? 0;
   const shareDevices = loop.share_devices ?? 0;
   const viralNew = loop.viral_new_devices ?? 0;
@@ -208,18 +207,16 @@ export function ViralLoopSection({
         <StatCard
           label="자랑 실행 기기"
           value={nf(shareDevices)}
-          sub={
-            shareCount > 0
-              ? `공유 ${nf(byAction.get("share") ?? 0)} · 저장 ${nf(byAction.get("share_download") ?? 0)}`
-              : undefined
-          }
+          sub={shareCount > 0 ? `실행 ${nf(shareCount)}회` : undefined}
         />
         <StatCard label="공유 유입 신규 기기" value={nf(viralNew)} />
         <StatCard label="그중 생성 도달" value={nf(viralGen)} sub={pct(viralGen, viralNew)} />
       </div>
       <p className="mt-2 text-xs leading-relaxed text-stone-400">
-        윈도우 집계 근사(인과 아님). 공유 유입은 /share 링크 랜딩 기준 — 이미지 워터마크만 보고
-        직접 들어온 유입은 &lsquo;직접&rsquo;으로 잡혀요. 신규 기기 귀속은 first-touch 기준.
+        윈도우 집계 근사(인과 아님). 자랑 실행 = 공유 시트 완료(또는 미지원 폴백 저장) — 시트
+        안에서 저장했는지 어디에 공유했는지는 알 수 없어요. 공유 유입은 /share 링크 랜딩 기준
+        — 이미지 워터마크만 보고 직접 들어온 유입은 &lsquo;직접&rsquo;으로 잡혀요. 신규 기기
+        귀속은 first-touch 기준.
       </p>
     </Card>
   );

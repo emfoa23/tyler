@@ -3,13 +3,11 @@
 // IP·UA·원본 URL 은 보내지 않는다: 랜딩 그룹 + 정규화된 소스(도메인/utm_source)만.
 // 클라이언트 전용. 실패는 조용히 무시(수집이 서비스 동작에 영향 주지 않음).
 import { getClientId } from "@/lib/client-id";
+import { BOT_UA_RE } from "@/lib/bot-ua";
 
 // 검색엔진 렌더링 크롤러(Googlebot WRS·네이버 Yeti 등)는 JS 를 실행해 비콘을 울린다 —
 // 페이지당 새 컨텍스트(새 client_id·direct·단발)로 방문 통계를 오염시키므로 발화 전에 거른다.
 // UA 는 판별에만 쓰고 저장하지 않는다(무저장 원칙 유지).
-const BOT_UA_RE =
-  /bot|spider|crawl|slurp|headless|lighthouse|preview|yeti|daum|petal|semrush|ahrefs|yandex|baidu|bytespider|gptbot|inspectiontool|googleother|google-extended|facebookexternalhit|kakaotalk-scrap|whatsapp|telegram|skype/i;
-
 export function isLikelyBot(): boolean {
   try {
     return navigator.webdriver === true || BOT_UA_RE.test(navigator.userAgent);
