@@ -84,7 +84,8 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
   `tyler_client_id`(localStorage, `lib/client-id.ts`)를 쓰며 IP·UA·원본 URL 은 저장하지 않는다.
   기기 행은 방문 비콘 또는 `/api/generate` 서버 적재 중 먼저 온 쪽이 만들며, 서버 적재가 앞서면
   first-touch 가 NULL(미상)로 시작하고 **첫 방문 비콘이 1회 채운다**(이후 동결; 어드민은 빈 값을 '미상'으로 표시)
-  (개인정보처리방침 2026-08-29 개정 고지). 반자동 사용은 `generated_sets.fixed_count`(과거 null=미상).
+  (개인정보처리방침 2026-08-29 개정 고지). 번호 선택 사용은 `generated_sets.picked_count`(과거
+  null=미상 — 0 자동·1~5 반자동·6 수동·7+ '내 번호만 뽑기', 2026-09-02 `fixed_count` 에서 개명).
 - **하이브리드 규약(boss-paegi v1.06 이식)**: 카운트류 = `analytics_rollups(day_kst<오늘)` +
   오늘 라이브 `analytics_rollup_rows_for_day(오늘)` — 하루치 집계 SQL 함수가 cron(INSERT)과
   어드민 라이브(SELECT)의 단일 소스. 윈도우 distinct 기기·회차 리텐션·성적표는 raw 직조회 RPC

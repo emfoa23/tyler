@@ -7,7 +7,7 @@
 ## 주요 페이지
 
 - [홈](https://lottogen.click/): 최신 회차 당첨번호와 명당 TOP 5
-- [번호 생성](https://lottogen.click/generate): 무작위 번호 생성과 당첨 자동 대조 (최대 5개 번호 고정 반자동 지원)
+- [번호 생성](https://lottogen.click/generate): 무작위 번호 생성과 당첨 자동 대조 (번호를 1~5개 고르면 반자동, 6개는 수동, 7개 이상 고르면 그 안에서만 6개를 뽑는 '내 번호만 뽑기' 지원)
 - [회차별 당첨 결과](https://lottogen.click/history): 1회차부터 전 회차 당첨번호·등위별 당첨금, 회차별 상세는 /history/{회차}
 - [명당 순위](https://lottogen.click/stores): 1·2등 배출 판매점 순위(지역·기간·등수 필터), 지점별 상세는 /stores/{지점ID}
 - [자주 나오는 번호](https://lottogen.click/numbers): 번호별 출현 횟수 순위(기간·보너스 포함 필터)
