@@ -184,8 +184,22 @@ grant execute on function number_frequency(integer, boolean) to service_role;
 -- 이 블록은 멱등(if not exists / or replace) — Management API 로 그대로 재적용 가능.
 -- ═══════════════════════════════════════════════════════════════════════════
 
--- 반자동(고정번호) 사용 기록 — 과거 행 null=미상(컬럼 도입 전), 이후 0~5.
-alter table generated_sets add column if not exists fixed_count smallint;
+-- 고른 번호 개수(제품 '번호 고르기') — null=미상(컬럼 도입 전). 0=자동, 1~5=반자동(전부 포함
+-- +채움), 6=수동(조합 그대로), 7+='내 번호만 뽑기'(고른 것 안에서만 6개 무작위).
+-- 2026-09-02 fixed_count 에서 개명 — 반자동 전용(0~5)이던 시절의 이름이라 풀 모드의
+-- 번호(후보이지 고정이 아님)와 의미가 벌어졌다. rename 블록이 add 보다 앞이어야
+-- 데이터가 든 프로드에 전체 파일을 재적용해도 빈 신컬럼이 따로 생기지 않는다.
+do $$ begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'generated_sets'
+               and column_name = 'fixed_count')
+     and not exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'generated_sets'
+               and column_name = 'picked_count') then
+    alter table generated_sets rename column fixed_count to picked_count;
+  end if;
+end $$;
+alter table generated_sets add column if not exists picked_count smallint;
 
 create table if not exists analytics_events (
   id bigint generated always as identity primary key,

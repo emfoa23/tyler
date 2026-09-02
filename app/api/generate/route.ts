@@ -10,36 +10,53 @@ const DAILY_LIMIT = 200;
 const MAX_BATCH = 5;
 
 // 서버에서 생성해야 통계가 정직해진다 (클라이언트 조작 번호가 기록되지 않도록).
-// 반자동: 실제 로또처럼 최대 5개까지 고정을 허용하고, 나머지는 여전히 서버 무작위.
-function generateSet(fixed: number[] = []): number[] {
-  const pool = Array.from({ length: 45 }, (_, i) => i + 1).filter((n) => !fixed.includes(n));
-  const need = 6 - fixed.length;
-  const rand = new Uint32Array(need);
+// 고른 번호(picked)의 개수가 동작을 결정한다 — 6개가 안 되면 모자란 만큼 무작위로
+// 채우고(0=자동·1~5=반자동), 6개면 그 조합 그대로(수동), 6개가 넘으면 고른 것
+// 안에서만 6개를 뽑는다(내 번호만 뽑기). generate-client 의 안내 문구와 같은 규칙.
+function sampleK(pool: number[], k: number): number[] {
+  const rand = new Uint32Array(k);
   crypto.getRandomValues(rand);
-  const picked = [...fixed];
-  for (let i = 0; i < need; i++) {
-    const idx = rand[i] % pool.length;
-    picked.push(pool.splice(idx, 1)[0]);
+  const out: number[] = [];
+  for (let i = 0; i < k; i++) {
+    out.push(pool.splice(rand[i] % pool.length, 1)[0]);
   }
-  return picked.sort((a, b) => a - b);
+  return out;
+}
+
+function generateSet(picked: number[] = []): number[] {
+  const set =
+    picked.length > 6
+      ? sampleK([...picked], 6)
+      : [
+          ...picked,
+          ...sampleK(
+            Array.from({ length: 45 }, (_, i) => i + 1).filter((n) => !picked.includes(n)),
+            6 - picked.length,
+          ),
+        ];
+  return set.sort((a, b) => a - b);
 }
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const clientId = typeof body.clientId === "string" ? body.clientId : "";
-  const count = Math.min(Math.max(1, Number(body.count) || 1), MAX_BATCH);
   if (!UUID_RE.test(clientId)) {
     return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
   }
 
-  const fixed: number[] = (Array.isArray(body.fixed) ? body.fixed : []).map(Number);
-  const fixedValid =
-    fixed.length <= 5 &&
-    fixed.every((n) => Number.isInteger(n) && n >= 1 && n <= 45) &&
-    new Set(fixed).size === fixed.length;
-  if (!fixedValid) {
-    return NextResponse.json({ error: "고정 번호가 잘못되었습니다." }, { status: 400 });
+  // body.fixed 는 picked 개명(2026-09-02) 전에 열린 탭의 구 클라이언트 호환 별칭 — 다음 정리 때 제거.
+  const rawPicked = Array.isArray(body.picked) ? body.picked : Array.isArray(body.fixed) ? body.fixed : [];
+  const picked: number[] = rawPicked.map(Number);
+  const pickedValid =
+    picked.length <= 45 &&
+    picked.every((n) => Number.isInteger(n) && n >= 1 && n <= 45) &&
+    new Set(picked).size === picked.length;
+  if (!pickedValid) {
+    return NextResponse.json({ error: "고른 번호가 잘못되었습니다." }, { status: 400 });
   }
+  // 수동(6개 = 조합 확정)은 같은 조합을 여러 세트 뽑는 게 무의미 — UI 비활성과 별개로 서버도 1세트로 강제.
+  const count =
+    picked.length === 6 ? 1 : Math.min(Math.max(1, Number(body.count) || 1), MAX_BATCH);
 
   const latest = await getLatestDraw();
   if (!latest) {
@@ -63,12 +80,24 @@ export async function POST(req: Request) {
     );
   }
 
-  const rows = Array.from({ length: count }, () => ({
-    client_id: clientId,
-    numbers: generateSet(fixed),
-    target_draw: target,
-    fixed_count: fixed.length,
-  }));
+  // 같은 요청(배치) 안에서는 같은 조합을 다시 뽑지 않는다 — 풀이 작으면(최소 7개 = 조합
+  // 7가지) 중복이 체감돼 버그로 보인다. 조합 공간이 항상 MAX_BATCH(5) 이상이라(자동 814만
+  // ·반자동 최소 40·풀 최소 7) 재추첨은 곧 끝난다. 시도 상한은 안전장치일 뿐. 지난 배치·
+  // 이력과의 중복 회피는 하지 않는다(그건 무작위가 아니게 된다).
+  const seen = new Set<string>();
+  const rows = Array.from({ length: count }, () => {
+    let numbers = generateSet(picked);
+    for (let tries = 0; seen.has(numbers.join(",")) && tries < 100; tries++) {
+      numbers = generateSet(picked);
+    }
+    seen.add(numbers.join(","));
+    return {
+      client_id: clientId,
+      numbers,
+      target_draw: target,
+      picked_count: picked.length,
+    };
+  });
   const { data, error } = await db
     .from("generated_sets")
     .insert(rows)

@@ -71,17 +71,25 @@ export function GenerateClient() {
   const [fresh, setFresh] = useState<GeneratedSet[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fixed, setFixed] = useState<number[]>([]);
-  const [showFixed, setShowFixed] = useState(false);
+  const [picked, setPicked] = useState<number[]>([]);
+  const [showPicked, setShowPicked] = useState(false);
   // 내 생성 기록 필터 — 켜면 당첨(5등 이상)만, 토글할 때마다 목록을 첫 페이지(20개)로 리셋한다
   const [winsOnly, setWinsOnly] = useState(false);
 
-  // 반자동: 실제 로또처럼 최대 5개까지 고정, 나머지는 서버 무작위
-  function toggleFixed(n: number) {
-    setFixed((prev) =>
-      prev.includes(n) ? prev.filter((v) => v !== n) : prev.length < 5 ? [...prev, n] : prev,
-    );
+  // 고른 개수가 동작을 결정한다 — 1~5개 반자동(전부 포함+채움) · 6개 수동(그 조합 그대로)
+  // · 7개 이상 '내 번호만 뽑기'(고른 것 안에서만 6개 무작위). 서버 generateSet 과 같은 규칙.
+  function togglePicked(n: number) {
+    setPicked((prev) => (prev.includes(n) ? prev.filter((v) => v !== n) : [...prev, n]));
   }
+
+  const pickedHint =
+    picked.length === 0
+      ? "1~5개를 고르면 반자동, 6개는 수동, 7개 이상 고르면 그 안에서만 뽑습니다."
+      : picked.length <= 5
+        ? `반자동 — 고른 ${picked.length}개를 모두 포함하고 나머지 ${6 - picked.length}개를 무작위로 채웁니다.`
+        : picked.length === 6
+          ? "수동 — 이 조합이 그대로 기록됩니다."
+          : `내 번호만 뽑기 — 고른 ${picked.length}개 중에서 6개를 무작위로 뽑습니다.`;
 
   const load = useCallback(async (cid: string, wins: boolean) => {
     const res = await fetch(`/api/generate?clientId=${cid}${wins ? "&wins=1" : ""}`, { cache: "no-store" });
@@ -109,7 +117,7 @@ export function GenerateClient() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ clientId, count, ...(fixed.length ? { fixed } : {}) }),
+        body: JSON.stringify({ clientId, count, ...(picked.length ? { picked } : {}) }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -186,51 +194,47 @@ export function GenerateClient() {
           <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5">
             <button
               type="button"
-              onClick={() => setShowFixed(!showFixed)}
+              onClick={() => setShowPicked(!showPicked)}
               className="text-sm font-medium text-stone-500 hover:text-stone-700"
             >
-              번호 고정 (반자동) {showFixed ? "▴" : "▾"}
+              번호 고르기 {showPicked ? "▴" : "▾"}
             </button>
-            {fixed.length > 0 && !showFixed && (
-              <BallRow numbers={[...fixed].sort((a, b) => a - b)} size="sm" />
+            {picked.length > 0 && !showPicked && (
+              <BallRow numbers={[...picked].sort((a, b) => a - b)} size="sm" />
             )}
-            {fixed.length > 0 && (
+            {picked.length > 0 && (
               <button
                 type="button"
-                onClick={() => setFixed([])}
+                onClick={() => setPicked([])}
                 className="text-xs text-stone-400 hover:underline"
               >
                 지우기
               </button>
             )}
           </div>
-          {showFixed && (
-            <>
-              <div className="mx-auto mt-3 grid w-fit grid-cols-9 gap-1">
-                {Array.from({ length: 45 }, (_, i) => i + 1).map((n) => {
-                  const on = fixed.includes(n);
-                  return (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => toggleFixed(n)}
-                      disabled={!on && fixed.length >= 5}
-                      className={`flex size-8 items-center justify-center rounded-full text-xs font-bold transition ${
-                        on
-                          ? "text-white"
-                          : "border border-stone-200 bg-white text-stone-500 hover:bg-stone-50 disabled:opacity-30"
-                      }`}
-                      style={on ? { backgroundColor: ballColor(n), textShadow: "0 1px 1px rgba(0,0,0,.3)" } : undefined}
-                    >
-                      {n}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-xs text-stone-400">
-                최대 5개 고정 — 고정한 번호를 포함해 나머지를 무작위로 채웁니다.
-              </p>
-            </>
+          {showPicked && (
+            <div className="mx-auto mt-3 grid w-fit grid-cols-9 gap-1">
+              {Array.from({ length: 45 }, (_, i) => i + 1).map((n) => {
+                const on = picked.includes(n);
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => togglePicked(n)}
+                    className={`flex size-8 items-center justify-center rounded-full text-xs font-bold transition ${
+                      on ? "text-white" : "border border-stone-200 bg-white text-stone-500 hover:bg-stone-50"
+                    }`}
+                    style={on ? { backgroundColor: ballColor(n), textShadow: "0 1px 1px rgba(0,0,0,.3)" } : undefined}
+                  >
+                    {n}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {/* 고른 게 있으면 접어도 안내 유지 — 뽑기 버튼이 뭘 할지는 항상 보여야 한다 */}
+          {(showPicked || picked.length > 0) && (
+            <p className="mt-2 text-xs text-stone-400">{pickedHint}</p>
           )}
         </div>
         <div className="mt-4 flex justify-center gap-2">
@@ -241,9 +245,10 @@ export function GenerateClient() {
           >
             {busy ? "뽑는 중…" : "1세트 뽑기"}
           </button>
+          {/* 수동(6개 확정)은 같은 조합 5세트가 무의미 — 서버도 1세트로 강제한다 */}
           <button
             onClick={() => generate(5)}
-            disabled={busy || !clientId}
+            disabled={busy || !clientId || picked.length === 6}
             className="rounded-xl border border-stone-300 bg-white px-6 py-3 text-base font-bold text-stone-700 transition hover:bg-stone-50 disabled:opacity-50"
           >
             5세트

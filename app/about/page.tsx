@@ -24,9 +24,11 @@ export default function AboutPage() {
             <Link href="/generate" className="font-medium text-amber-600 hover:underline">
               번호 생성
             </Link>{" "}
-            — 서버에서 완전한 무작위로 번호를 생성합니다. 원하는 번호를 최대 5개까지 고정하고
-            나머지만 무작위로 채우는 반자동도 지원합니다. 생성한 번호는 기기별로 보관되며,
-            추첨이 끝나면 실제 당첨번호와 자동으로 대조해 등수를 보여줍니다.
+            — 서버에서 완전한 무작위로 번호를 생성합니다. 번호를 1~5개 고르면 모두 포함하고
+            나머지를 무작위로 채우는 반자동, 6개를 고르면 그 조합 그대로 기록하는 수동, 7개
+            이상 고르면 고른 번호 안에서만 6개를 뽑는 &lsquo;내 번호만 뽑기&rsquo;가 됩니다.
+            생성한 번호는 기기별로 보관되며, 추첨이 끝나면 실제 당첨번호와 자동으로 대조해
+            등수를 보여줍니다.
           </li>
           <li>
             <Link href="/history" className="font-medium text-amber-600 hover:underline">
