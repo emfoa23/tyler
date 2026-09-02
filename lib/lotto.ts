@@ -87,6 +87,24 @@ export function storeDisplayName(store: Pick<Store, "store_id" | "name">): strin
   return isOnlineStore(store.store_id) ? "동행복권 사이트" : store.name;
 }
 
+// 번호 통계 2차 메뉴 — /numbers 는 섹션 루트이자 기본 뷰(자주 나오는 번호)
+export const NUMBERS_TABS = [
+  { href: "/numbers", label: "자주 나오는 번호" },
+  { href: "/numbers/missing", label: "안나온 번호" },
+];
+
+// 안나온 번호 랭킹: 마지막 출현(last_draw) 이후 몇 회째 안 나왔는지 — 최신 회차 기준
+// 내림차순. 기간 필터가 없는 이유: 미출현 회차수는 최신 회차에서 거슬러 세는 지표라
+// 기간 윈도우와 개념이 충돌한다. 전 기간 무출현(last_draw null)은 최신 회차수 전체로 최상위.
+export function rankByMissed<T extends { num: number; last_draw: number | null }>(
+  rows: T[],
+  latestNo: number,
+): (T & { missed: number })[] {
+  return rows
+    .map((r) => ({ ...r, missed: latestNo - (r.last_draw ?? 0) }))
+    .sort((a, b) => b.missed - a.missed || a.num - b.num);
+}
+
 // 기간 필터 공통 옵션 (명당 순위·번호 통계) — URL/RPC 는 월 단위
 export const MONTHS_OPTIONS = [
   { value: "all", label: "전체 기간" },
