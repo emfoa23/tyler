@@ -241,6 +241,25 @@ create table if not exists analytics_devices (
 create index if not exists analytics_devices_first_seen_idx on analytics_devices (first_seen_day);
 alter table analytics_devices enable row level security;
 
+-- 첫 관측일 시드(2026-09-02 v6): 첫 관측일 = 방문·생성 중 처음 보인 날. 방문 수집(2026-08-29) 전에
+-- 생성만 했던 기기는 돌아올 때 비로소 행이 생기므로, INSERT 시 generated_sets 최초 생성일과 비교해
+-- 이른 쪽을 심는다(방문 비콘·서버 생성 두 경로가 모두 행을 만들어 코드 두 곳 대신 트리거 한 곳).
+create or replace function analytics_devices_seed_first_seen() returns trigger language plpgsql as $$
+declare
+  v_first_gen date;
+begin
+  select min((g.created_at at time zone 'Asia/Seoul')::date) into v_first_gen
+  from generated_sets g where g.client_id = new.client_id;
+  if v_first_gen is not null then
+    if v_first_gen < new.first_seen_day then new.first_seen_day := v_first_gen; end if;
+    if new.first_gen_day is null or v_first_gen < new.first_gen_day then new.first_gen_day := v_first_gen; end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_analytics_devices_seed_first_seen on analytics_devices;
+create trigger trg_analytics_devices_seed_first_seen before insert on analytics_devices
+  for each row execute function analytics_devices_seed_first_seen();
+
 create table if not exists analytics_rollups (
   day_kst date not null,
   metric text not null,
@@ -399,26 +418,38 @@ begin
   );
 end $$;
 
+-- 유저 구성(2026-09-02 v6, GA식·일 단위): "처음"은 롤업(visit_new_devices·gen_new_devices), "다시"는 여기.
+-- 다시 방문 = 창 안 방문일 중 첫 관측일(first_seen_day)보다 뒤인 날이 있는 기기. 창 안에서 처음
+-- 오고 또 온 기기는 처음 방문과 겹친다(오늘 탭만 겹침 없음, 전체 탭은 처음=전체).
+-- 전체 = 레지스트리(마지막 방문일 > 첫 관측일, 영구) / 윈도우 = raw 방문 이벤트(90일 내 정확).
+-- 다시 생성 = 창 안 생성일 중 첫 생성일보다 뒤인 날이 있는 기기 — generated_sets 영구라 전 기간 정확.
+-- (구 정의 "창 안 2일 이상 방문"은 오늘 탭이 구조적으로 0이고 과거 이력을 무시해 폐기.)
 create or replace function admin_engagement_window(p_days integer default null)
 returns table (metric text, devices bigint)
 language plpgsql stable security definer set search_path = public as $$
 declare
   v_today date := (now() at time zone 'Asia/Seoul')::date;
   v_from date;
+  v_from_ts timestamptz;
 begin
   if p_days is not null and p_days not between 1 and 90 then
     raise exception 'admin_engagement_window_invalid_days' using errcode = '22023';
   end if;
   v_from := case when p_days is null then null else v_today - (p_days - 1) end;
+  v_from_ts := case when v_from is null then null else (v_from::timestamp at time zone 'Asia/Seoul') end;
   return query
-  -- 재방문 기기: 전체=첫날 이후 다시 온 기기(레지스트리) / 윈도우=2일 이상 방문한 기기(raw)
   select 'returning_visit_devices'::text, case when p_days is null
     then (select count(*) from analytics_devices d where d.last_seen_day > d.first_seen_day)
-    else (select count(*) from (
-      select e.client_id from analytics_events e
-      where e.kind = 'visit' and e.day_kst >= v_from
-      group by e.client_id having count(distinct e.day_kst) >= 2
-    ) t) end;
+    else (select count(distinct e.client_id) from analytics_events e
+          join analytics_devices d on d.client_id = e.client_id
+          where e.kind = 'visit' and e.day_kst >= v_from and e.day_kst > d.first_seen_day) end
+  union all
+  select 'returning_gen_devices', (
+    select count(distinct g.client_id) from generated_sets g
+    join (select g2.client_id, min((g2.created_at at time zone 'Asia/Seoul')::date) as first_day
+          from generated_sets g2 group by g2.client_id) f on f.client_id = g.client_id
+    where (v_from_ts is null or g.created_at >= v_from_ts)
+      and (g.created_at at time zone 'Asia/Seoul')::date > f.first_day);
 end $$;
 
 -- first-touch 소스별 기기 획득→활성 전환(레지스트리 기반 — 영구 정확)
@@ -692,3 +723,17 @@ alter table shares enable row level security;
 -- 생성 번호 균등성 블록도 사용자 결정으로 통삭제(RPC 포함).
 delete from analytics_rollups where metric in ('share_by_draw', 'gen_fixed_sets', 'limit_hit_devices');
 drop function if exists generated_number_frequency();
+
+-- ── 유저 구성 (2026-09-02 v6) ──────────────────────────────────────────────
+-- 어드민 '유저활용'을 '유저 구성'으로 재편(GA식·일 단위): 방문·생성 각 층을 처음/다시로 분해.
+-- 재방문 재정의·재생성 추가는 admin_engagement_window, 첫 관측일 시드는 analytics_devices 트리거 참조.
+-- 방문 수집 전(≤2026-08-28)에 생성만 했다가 이미 돌아와 레지스트리에 있는 기기(도입 시 6대)는
+-- 첫 관측일이 첫 방문일로 잡혀 있어 최초 생성일로 당긴다(멱등). 적용 후 maintain_analytics_rollups(91)
+-- 로 일별 visit_new_devices·acq_new_by_ft 를 재계산한다(첫 관측일이 이동한 기기 몫).
+update analytics_devices d
+set first_seen_day = least(d.first_seen_day, f.first_day),
+    first_gen_day = least(coalesce(d.first_gen_day, f.first_day), f.first_day)
+from (select client_id, min((created_at at time zone 'Asia/Seoul')::date) as first_day
+      from generated_sets group by client_id) f
+where f.client_id = d.client_id
+  and (f.first_day < d.first_seen_day or d.first_gen_day is null or f.first_day < d.first_gen_day);

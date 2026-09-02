@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 // 하이브리드 규약(boss-paegi v1.06 이식): [오늘|7일|30일|전체] KST 달력일 윈도우.
 // day-additive 지표(카운트류) = 롤업(day_kst < 오늘) + 오늘 라이브(analytics_rollup_rows_for_day)
 // — 하루치 집계 SQL 함수가 cron 과 라이브의 단일 소스라 두 경로가 드리프트할 수 없다.
-// 윈도우 distinct 기기·리텐션·성적표 = raw 직조회 RPC(일단위 분해가 안 되는 지표의 정직한 예외).
+// 윈도우 distinct 기기(퍼널·유저 구성의 '다시')·리텐션·성적표 = raw 직조회 RPC(일단위 분해가 안 되는 지표의 정직한 예외).
 
 export type StatWindow = 1 | 7 | 30 | "all";
 
@@ -108,12 +108,22 @@ export async function getFunnelWindow(window: StatWindow): Promise<FunnelStages>
   return out;
 }
 
-export async function getReturningVisitDevices(window: StatWindow): Promise<number> {
+export type Engagement = { returningVisitDevices: number; returningGenDevices: number };
+
+/**
+ * 유저 구성의 '다시'(윈도우 distinct 기기, raw RPC): 다시 방문 = 창 안 방문일이 첫 관측일보다 뒤인 기기,
+ * 다시 생성 = 창 안 생성일이 첫 생성일보다 뒤인 기기. '처음'(처음 방문·처음 생성)은 롤업(visit_new_devices·gen_new_devices).
+ */
+export async function getEngagementWindow(window: StatWindow): Promise<Engagement> {
   const rows = await rpcRows<{ metric: string; devices: number | string }>(
     "admin_engagement_window",
     { p_days: windowDays(window) },
   );
-  return Number(rows.find((r) => r.metric === "returning_visit_devices")?.devices) || 0;
+  const get = (metric: string) => Number(rows.find((r) => r.metric === metric)?.devices) || 0;
+  return {
+    returningVisitDevices: get("returning_visit_devices"),
+    returningGenDevices: get("returning_gen_devices"),
+  };
 }
 
 export type FtConversionRow = {
