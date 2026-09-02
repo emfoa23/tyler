@@ -123,7 +123,7 @@ if (changed && site && secret) {
 // 6) 변경이 있었으면 IndexNow 핑 — 새 회차 페이지가 검색엔진에 빨리 잡히게 (비치명, 실패해도 성공 종료)
 if (changed) {
   const latestNo = (await select("draws?select=draw_no&order=draw_no.desc&limit=1"))[0]?.draw_no;
-  const paths = ["/", "/history", "/stores", "/numbers", ...(latestNo ? [`/history/${latestNo}`] : [])];
+  const paths = ["/", "/history", "/stores", "/numbers", "/numbers/missing", ...(latestNo ? [`/history/${latestNo}`] : [])];
   try {
     console.log(`indexnow: ${await pingIndexNow(paths)} (${paths.length} urls)`);
   } catch (e) {

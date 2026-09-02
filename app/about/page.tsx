@@ -47,6 +47,12 @@ export default function AboutPage() {
             </Link>{" "}
             — 번호별 출현 횟수 순위를 기간별로, 보너스 번호 포함 여부를 골라 볼 수 있습니다.
           </li>
+          <li>
+            <Link href="/numbers/missing" className="font-medium text-amber-600 hover:underline">
+              안나온 번호
+            </Link>{" "}
+            — 번호마다 마지막 출현 뒤 몇 회째 안 나왔는지를 순위로 보여줍니다.
+          </li>
         </ul>
       </section>
 

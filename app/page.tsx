@@ -4,7 +4,7 @@ import { Ball, BallRow } from "@/components/ball";
 import { StoreBadges } from "@/components/store-badge";
 import { dateK, dateShort, wonShort } from "@/lib/format";
 import { HOME_DESCRIPTION, HOME_TITLE, pageMeta } from "@/lib/seo";
-import { drawNumbers, isOnlineStore, storeDisplayName } from "@/lib/lotto";
+import { drawNumbers, isOnlineStore, rankByMissed, storeDisplayName } from "@/lib/lotto";
 import { getDraws, getLatestDraw, getNumberFrequency, getRanking } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -23,12 +23,16 @@ export default async function HomePage() {
     );
   }
 
-  // 명당은 역대 전체(최근 1년은 수가 적어 비어 보임 — 2026-08-20 결정), 번호는 최근 1년
-  const [top, freq, { rows: recentRows }] = await Promise.all([
+  // 명당은 역대 전체(최근 1년은 수가 적어 비어 보임 — 2026-08-20 결정).
+  // 번호 TOP 5 두 종은 각 목록 페이지의 디폴트 필터(전체 기간·본번호)와 일치시켜
+  // '전체 보기' 랜딩에서 홈과 같은 순위가 이어지게 한다 (2026-09-02 결정, 부가 설명 캡션 불필요).
+  const [top, freqAll, { rows: recentRows }] = await Promise.all([
     getRanking({ limit: 5 }),
-    getNumberFrequency({ months: 12, limit: 5 }),
+    getNumberFrequency({}),
     getDraws(1),
   ]);
+  const freq = freqAll.slice(0, 5);
+  const missedTop = rankByMissed(freqAll, latest.draw_no).slice(0, 5);
   const recent = recentRows.filter((d) => d.draw_no !== latest.draw_no).slice(0, 5);
 
   return (
@@ -111,10 +115,7 @@ export default async function HomePage() {
 
       <section className="rounded-2xl border border-stone-200 bg-white p-6">
         <div className="flex items-baseline justify-between">
-          <div>
-            <h2 className="font-bold">자주 나오는 번호 TOP 5</h2>
-            <p className="mt-0.5 text-xs text-stone-400">최근 1년 기준</p>
-          </div>
+          <h2 className="font-bold">자주 나오는 번호 TOP 5</h2>
           <Link href="/numbers" className="text-sm text-stone-500 hover:underline">
             전체 보기 →
           </Link>
@@ -125,6 +126,25 @@ export default async function HomePage() {
               <Ball n={r.num} size="md" />
               <span className="text-sm text-stone-600">
                 <b>{r.cnt}</b>회
+              </span>
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-6">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-bold">안나온 번호 TOP 5</h2>
+          <Link href="/numbers/missing" className="text-sm text-stone-500 hover:underline">
+            전체 보기 →
+          </Link>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {missedTop.map((r) => (
+            <span key={r.num} className="flex items-center gap-1.5">
+              <Ball n={r.num} size="md" />
+              <span className="text-sm text-stone-600">
+                <b>{r.missed}</b>회째
               </span>
             </span>
           ))}
