@@ -24,6 +24,8 @@ const LANDING_KO: Record<string, string> = {
 
 function srcLabel(key: string): string {
   const [kind, value] = key.split(" · ");
+  // first-touch 미상(기기 행이 서버 적재로 먼저 생긴 경우) — 빈 칸 대신 명시
+  if (!kind) return "미상";
   const k = SRC_KO[kind] ?? kind;
   if (!value || kind === "direct" || kind === "viral") return k;
   return `${k} · ${value}`;

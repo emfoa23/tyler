@@ -77,6 +77,14 @@ export async function POST(req: Request) {
         .update({ last_seen_day: today })
         .eq("client_id", clientId)
         .lt("last_seen_day", today);
+      // /api/generate 의 서버 적재가 방문 비콘(상호작용 게이트로 지연)보다 먼저 기기 행을 만들면
+      // first-touch 가 NULL 로 남는다(2026-09-02 실측 — 같은 초에 generate_view 가 visit 을 앞섬).
+      // NULL 은 '미상'이지 확정값이 아니므로 첫 방문으로 1회 채운다(이후는 동결 그대로).
+      await db
+        .from("analytics_devices")
+        .update({ ft_kind: ft.kind, ft_value: ft.value, first_landing: landing })
+        .eq("client_id", clientId)
+        .is("ft_kind", null);
     }
   } else if (kind === "generate_view") {
     await db.from("analytics_events").insert({ client_id: clientId, kind: "generate_view" });
