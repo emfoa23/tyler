@@ -1,9 +1,11 @@
 import type {
   DrawReportRow,
+  Engagement,
   FtConversionRow,
   FunnelStages,
   MetricRow,
   RetentionRow,
+  StatWindow,
 } from "@/lib/admin-analytics";
 import { metricByDim, metricTotal } from "@/lib/admin-analytics";
 
@@ -231,29 +233,65 @@ export function ViralLoopSection({
   );
 }
 
-/* ── 유저활용 ── */
+/* ── 유저 구성 ── */
 
-export function EngagementSection({
+export function UserCompositionSection({
+  window,
   metrics,
   stages,
-  returning,
+  engagement,
   retention,
 }: {
+  window: StatWindow;
   metrics: MetricRow[];
   stages: FunnelStages;
-  returning: number;
+  engagement: Engagement;
   retention: RetentionRow[];
 }) {
-  const newDevices = metricTotal(metrics, "visit_new_devices");
+  // GA식·일 단위(2026-09-02): 처음 = 첫 관측일(방문·생성 중 먼저)이 기간 안(롤업), 다시 = 기간 안에
+  // 첫날보다 뒤의 방문일/생성일이 있음(raw RPC). 기간 안에서 처음 오고 또 온 기기는 둘 다에 세므로
+  // 합이 전체보다 클 수 있다(오늘 탭만 겹침 없음, 전체 탭은 처음=전체). 방문·생성은 퍼널과 같은 값.
+  const rows = [
+    {
+      label: "방문 기기",
+      total: stages.visit ?? 0,
+      first: "처음 온 기기",
+      firstValue: metricTotal(metrics, "visit_new_devices"),
+      again: "다시 온 기기",
+      againValue: engagement.returningVisitDevices,
+      of: "방문",
+    },
+    {
+      label: "생성 기기",
+      total: stages.generated ?? 0,
+      first: "처음 생성한 기기",
+      firstValue: metricTotal(metrics, "gen_new_devices"),
+      again: "다시 생성한 기기",
+      againValue: engagement.returningGenDevices,
+      of: "생성",
+    },
+  ];
   return (
     <Card>
-      <SectionTitle title="유저활용" note="재방문·회차 리텐션" />
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <StatCard label="방문 기기" value={nf(stages.visit ?? 0)} />
-        <StatCard label="신규 기기" value={nf(newDevices)} />
-        <StatCard label="재방문 기기" value={nf(returning)} sub="2일 이상 방문" />
-        <StatCard label="생성 기기" value={nf(stages.generated ?? 0)} />
+      <SectionTitle title="유저 구성" note="기기 기준 · 처음/다시로 분해 · 겹칠 수 있어요" />
+      <div className="mt-3 space-y-2">
+        {rows.map((r) => (
+          <div key={r.label} className="grid grid-cols-3 gap-2">
+            <StatCard label={r.label} value={nf(r.total)} />
+            <StatCard label={r.first} value={nf(r.firstValue)} />
+            <StatCard
+              label={r.again}
+              value={nf(r.againValue)}
+              sub={r.total > 0 ? `${r.of}의 ${pct(r.againValue, r.total)}` : undefined}
+            />
+          </div>
+        ))}
       </div>
+      <p className="mt-2 text-xs leading-relaxed text-stone-400">
+        처음 = 첫 관측일(방문·생성 중 먼저)이 기간 안. 다시 = 기간 안에 첫날보다 뒤의 방문일·생성일이
+        있음. 기간 안에서 처음 오고 또 온 기기는 둘 다에 세므로 합이 전체보다 클 수 있어요(오늘 탭은 겹침
+        없음).{window === "all" && " 전체 탭에서는 처음 온·처음 생성이 전체와 같아요."}
+      </p>
       <div className="mt-4">
         <p className="mb-1.5 text-xs font-semibold text-stone-500">
           회차 코호트 리텐션 <span className="font-normal">— 첫 참여 회차 기준, 전 기간</span>
@@ -311,20 +349,14 @@ export function GenerationSection({
   depth: { key: string; value: number }[];
 }) {
   const sets = metricTotal(metrics, "gen_sets");
-  const newGenDevices = metricTotal(metrics, "gen_new_devices");
   const genDevices = stages.generated ?? 0;
 
+  // 생성 기기·처음 생성한 기기는 유저 구성 섹션(한 숫자 한 자리). 여기는 세트 단위만.
   return (
     <Card>
       <SectionTitle title="생성분석" note="서버 무작위 생성 · 당첨 대조 포함" />
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <StatCard label="생성 세트" value={nf(sets)} />
-        <StatCard label="생성 기기" value={nf(genDevices)} />
-        <StatCard
-          label="신규 생성 기기"
-          value={nf(newGenDevices)}
-          sub={genDevices > 0 ? `생성 기기의 ${pct(newGenDevices, genDevices)}` : undefined}
-        />
         <StatCard
           label="기기당 세트"
           value={genDevices > 0 ? (sets / genDevices).toFixed(1) : "—"}

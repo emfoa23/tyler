@@ -9,7 +9,7 @@ import {
   getDrawRetention,
   getFtConversion,
   getFunnelWindow,
-  getReturningVisitDevices,
+  getEngagementWindow,
   getViralLoop,
   parseStatWindow,
 } from "@/lib/admin-analytics";
@@ -18,9 +18,9 @@ import { AdminUiMarker } from "@/components/admin-ui-marker";
 import { AdminPeriodTabs } from "@/components/admin-period-tabs";
 import {
   AcquisitionSection,
-  EngagementSection,
   FunnelSection,
   GenerationSection,
+  UserCompositionSection,
   ViralLoopSection,
 } from "@/components/admin-sections";
 
@@ -34,7 +34,7 @@ export const metadata: Metadata = pageMeta({
 });
 
 /**
- * 운영 통계(운영자 전용) — 퍼널·유입·유저활용·생성분석.
+ * 운영 통계(운영자 전용) — 퍼널·유저 구성·유입·바이럴 루프·생성분석.
  * 하이브리드(boss-paegi v1.06 규약): 오늘=라이브(rows_for_day)·어제까지=일별 롤업.
  * 윈도우 distinct 기기·리텐션·성적표는 raw 직조회 RPC(일단위 분해 불가한 지표의 예외).
  */
@@ -51,11 +51,11 @@ export default async function AdminPage({
   const sp = await searchParams;
   const window = parseStatWindow(sp.days);
 
-  const [metrics, stages, returning, ft, retention, report, depth, loop] =
+  const [metrics, stages, engagement, ft, retention, report, depth, loop] =
     await Promise.all([
       fetchWindowMetrics(window),
       getFunnelWindow(window),
-      getReturningVisitDevices(window),
+      getEngagementWindow(window),
       getFtConversion(window),
       getDrawRetention(8),
       getDrawReport(8),
@@ -75,9 +75,15 @@ export default async function AdminPage({
       </p>
 
       <FunnelSection stages={stages} />
+      <UserCompositionSection
+        window={window}
+        metrics={metrics}
+        stages={stages}
+        engagement={engagement}
+        retention={retention}
+      />
       <AcquisitionSection metrics={metrics} ft={ft} />
       <ViralLoopSection metrics={metrics} stages={stages} loop={loop} />
-      <EngagementSection metrics={metrics} stages={stages} returning={returning} retention={retention} />
       <GenerationSection metrics={metrics} stages={stages} report={report} depth={depth} />
     </div>
   );
