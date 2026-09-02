@@ -81,7 +81,9 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
   있는 기기**만 서버가 적재(위조 방지 — 2026-08-29 재정의, 단순 목록 조회는 세지 않음). 퍼널은
   방문→번호 생성→당첨 확인→2회차+ 생성 4단계(생성기 진입은 방문과 변별력이 낮아 표시 제외,
   수집은 유지). 기기 식별자는 제품과 같은
-  `tyler_client_id`(localStorage, `lib/client-id.ts`)를 쓰며 IP·UA·원본 URL 은 저장하지 않는다
+  `tyler_client_id`(localStorage, `lib/client-id.ts`)를 쓰며 IP·UA·원본 URL 은 저장하지 않는다.
+  기기 행은 방문 비콘 또는 `/api/generate` 서버 적재 중 먼저 온 쪽이 만들며, 서버 적재가 앞서면
+  first-touch 가 NULL(미상)로 시작하고 **첫 방문 비콘이 1회 채운다**(이후 동결; 어드민은 빈 값을 '미상'으로 표시)
   (개인정보처리방침 2026-08-29 개정 고지). 반자동 사용은 `generated_sets.fixed_count`(과거 null=미상).
 - **하이브리드 규약(boss-paegi v1.06 이식)**: 카운트류 = `analytics_rollups(day_kst<오늘)` +
   오늘 라이브 `analytics_rollup_rows_for_day(오늘)` — 하루치 집계 SQL 함수가 cron(INSERT)과
