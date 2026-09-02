@@ -111,8 +111,8 @@ export async function getFunnelWindow(window: StatWindow): Promise<FunnelStages>
 export type Engagement = { returningVisitDevices: number; returningGenDevices: number };
 
 /**
- * 유저 구성의 '다시'(윈도우 distinct 기기, raw RPC): 다시 온 기기 = 창 안 방문일이 첫 관측일보다 뒤인 기기,
- * 다시 생성한 기기 = 창 안 생성일이 첫 생성일보다 뒤인 기기. '처음'은 롤업(visit_new_devices·gen_new_devices).
+ * 유저 구성의 '다시'(윈도우 distinct 기기, raw RPC): 다시 방문 = 창 안 방문일이 첫 관측일보다 뒤인 기기,
+ * 다시 생성 = 창 안 생성일이 첫 생성일보다 뒤인 기기. '처음'(처음 방문·처음 생성)은 롤업(visit_new_devices·gen_new_devices).
  */
 export async function getEngagementWindow(window: StatWindow): Promise<Engagement> {
   const rows = await rpcRows<{ metric: string; devices: number | string }>(

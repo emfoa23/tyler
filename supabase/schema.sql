@@ -419,10 +419,10 @@ begin
 end $$;
 
 -- 유저 구성(2026-09-02 v6, GA식·일 단위): "처음"은 롤업(visit_new_devices·gen_new_devices), "다시"는 여기.
--- 다시 온 기기 = 창 안 방문일 중 첫 관측일(first_seen_day)보다 뒤인 날이 있는 기기. 창 안에서 처음
--- 오고 또 온 기기는 처음 온 기기와 겹친다(오늘 탭만 겹침 없음, 전체 탭은 처음=전체).
+-- 다시 방문 = 창 안 방문일 중 첫 관측일(first_seen_day)보다 뒤인 날이 있는 기기. 창 안에서 처음
+-- 오고 또 온 기기는 처음 방문과 겹친다(오늘 탭만 겹침 없음, 전체 탭은 처음=전체).
 -- 전체 = 레지스트리(마지막 방문일 > 첫 관측일, 영구) / 윈도우 = raw 방문 이벤트(90일 내 정확).
--- 다시 생성한 기기 = 창 안 생성일 중 첫 생성일보다 뒤인 날이 있는 기기 — generated_sets 영구라 전 기간 정확.
+-- 다시 생성 = 창 안 생성일 중 첫 생성일보다 뒤인 날이 있는 기기 — generated_sets 영구라 전 기간 정확.
 -- (구 정의 "창 안 2일 이상 방문"은 오늘 탭이 구조적으로 0이고 과거 이력을 무시해 폐기.)
 create or replace function admin_engagement_window(p_days integer default null)
 returns table (metric text, devices bigint)

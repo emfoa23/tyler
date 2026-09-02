@@ -251,22 +251,23 @@ export function UserCompositionSection({
   // GA식·일 단위(2026-09-02): 처음 = 첫 관측일(방문·생성 중 먼저)이 기간 안(롤업), 다시 = 기간 안에
   // 첫날보다 뒤의 방문일/생성일이 있음(raw RPC). 기간 안에서 처음 오고 또 온 기기는 둘 다에 세므로
   // 합이 전체보다 클 수 있다(오늘 탭만 겹침 없음, 전체 탭은 처음=전체). 방문·생성은 퍼널과 같은 값.
+  // 카드 라벨은 4자(처음 방문·다시 방문·처음 생성·다시 생성) — 375px 3열에서 긴 라벨은 두 줄로 꺾임(실측).
   const rows = [
     {
       label: "방문 기기",
       total: stages.visit ?? 0,
-      first: "처음 온 기기",
+      first: "처음 방문",
       firstValue: metricTotal(metrics, "visit_new_devices"),
-      again: "다시 온 기기",
+      again: "다시 방문",
       againValue: engagement.returningVisitDevices,
       of: "방문",
     },
     {
       label: "생성 기기",
       total: stages.generated ?? 0,
-      first: "처음 생성한 기기",
+      first: "처음 생성",
       firstValue: metricTotal(metrics, "gen_new_devices"),
-      again: "다시 생성한 기기",
+      again: "다시 생성",
       againValue: engagement.returningGenDevices,
       of: "생성",
     },
@@ -290,7 +291,7 @@ export function UserCompositionSection({
       <p className="mt-2 text-xs leading-relaxed text-stone-400">
         처음 = 첫 관측일(방문·생성 중 먼저)이 기간 안. 다시 = 기간 안에 첫날보다 뒤의 방문일·생성일이
         있음. 기간 안에서 처음 오고 또 온 기기는 둘 다에 세므로 합이 전체보다 클 수 있어요(오늘 탭은 겹침
-        없음).{window === "all" && " 전체 탭에서는 처음 온·처음 생성이 전체와 같아요."}
+        없음).{window === "all" && " 전체 탭에서는 처음 방문·처음 생성이 전체와 같아요."}
       </p>
       <div className="mt-4">
         <p className="mb-1.5 text-xs font-semibold text-stone-500">
@@ -351,7 +352,7 @@ export function GenerationSection({
   const sets = metricTotal(metrics, "gen_sets");
   const genDevices = stages.generated ?? 0;
 
-  // 생성 기기·처음 생성한 기기는 유저 구성 섹션(한 숫자 한 자리). 여기는 세트 단위만.
+  // 생성 기기·처음 생성은 유저 구성 섹션(한 숫자 한 자리). 여기는 세트 단위만.
   return (
     <Card>
       <SectionTitle title="생성분석" note="서버 무작위 생성 · 당첨 대조 포함" />
