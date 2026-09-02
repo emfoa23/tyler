@@ -53,6 +53,8 @@ export type GeneratedSet = {
 
 export type GenerationStats = {
   total: number;
-  checked: number;
+  devices: number;        // 생성 인원(기기 단위)
+  checked: number;        // 추첨 완료(대조된) 세트
+  drawn_devices: number;  // 추첨 완료 세트를 가진 인원
   r1: number; r2: number; r3: number; r4: number; r5: number;
 };

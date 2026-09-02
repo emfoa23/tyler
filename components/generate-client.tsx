@@ -277,7 +277,9 @@ export function GenerateClient() {
           <section className="rounded-2xl border border-stone-200 bg-white p-5 text-sm">
             <h2 className="font-bold">이 사이트의 생성 통계</h2>
             <p className="mt-2 text-stone-600">
-              지금까지 <b>{stats.total.toLocaleString("ko-KR")}</b>세트 생성 · 추첨 확인{" "}
+              지금까지 <b>{stats.devices.toLocaleString("ko-KR")}</b>명이{" "}
+              <b>{stats.total.toLocaleString("ko-KR")}</b>세트 생성 · 추첨 완료{" "}
+              <b>{stats.drawn_devices.toLocaleString("ko-KR")}</b>명의{" "}
               <b>{stats.checked.toLocaleString("ko-KR")}</b>세트
             </p>
             <p className="mt-1 text-stone-600">
