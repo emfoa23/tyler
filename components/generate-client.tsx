@@ -278,12 +278,11 @@ export function GenerateClient() {
             <h2 className="font-bold">이 사이트의 생성 통계</h2>
             <p className="mt-2 text-stone-600">
               지금까지 <b>{stats.devices.toLocaleString("ko-KR")}</b>명이{" "}
-              <b>{stats.total.toLocaleString("ko-KR")}</b>세트 생성 · 추첨 완료{" "}
-              {/* 375px 에서 '59명' / '의 2,170세트' 로 꺾이지 않게 인원·세트 구를 한 덩어리로(실측) */}
-              <span className="whitespace-nowrap">
-                <b>{stats.drawn_devices.toLocaleString("ko-KR")}</b>명의{" "}
-                <b>{stats.checked.toLocaleString("ko-KR")}</b>세트
-              </span>
+              <b>{stats.total.toLocaleString("ko-KR")}</b>세트 생성
+            </p>
+            <p className="mt-1 text-stone-600">
+              추첨 완료 <b>{stats.drawn_devices.toLocaleString("ko-KR")}</b>명의{" "}
+              <b>{stats.checked.toLocaleString("ko-KR")}</b>세트
             </p>
             <p className="mt-1 text-stone-600">
               실제 당첨 — 1등 <b>{stats.r1}</b> · 2등 <b>{stats.r2}</b> · 3등 <b>{stats.r3}</b> · 4등{" "}
