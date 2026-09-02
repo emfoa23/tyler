@@ -94,11 +94,18 @@ create or replace function store_ranking(
   limit p_limit offset p_offset
 $$;
 
-create or replace function generation_stats()
-returns table (total bigint, checked bigint, r1 bigint, r2 bigint, r3 bigint, r4 bigint, r5 bigint)
+-- 공개 '이 사이트의 생성 통계' 카드(/generate). v2(2026-09-02): 인원(devices)·추첨 완료 인원(drawn_devices) 추가 —
+-- 방문자에겐 세트 수보다 "몇 명이 만들어 어떻게 됐나"가 가치 있다(사용자 결정). 인원 = 기기(client_id) 단위.
+-- checked = 추첨이 끝나 대조된 세트(화면 표기 '추첨 완료' — 어드민 '당첨 확인' 이벤트와 다른 개념).
+-- 시그니처 변경이라 drop 후 재생성(아래 revoke/grant 가 다시 적용된다).
+drop function if exists generation_stats();
+create function generation_stats()
+returns table (total bigint, devices bigint, checked bigint, drawn_devices bigint, r1 bigint, r2 bigint, r3 bigint, r4 bigint, r5 bigint)
 language sql stable as $$
   select count(*),
+         count(distinct client_id),
          count(*) filter (where checked_at is not null),
+         count(distinct client_id) filter (where checked_at is not null),
          count(*) filter (where matched_rank = 1),
          count(*) filter (where matched_rank = 2),
          count(*) filter (where matched_rank = 3),
