@@ -119,12 +119,9 @@ export function fetchMasterPage(sido, pageNum) {
 const ymd = (s) => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
 
 export function mapDraw(it) {
-  // 1등 구매유형(winType1/2/3)은 "없음"을 null 이 아니라 0 으로 표현한다 — 추첨 직후 공개 전
-  // (~21:02 까지)과 원천에 데이터가 없는 261회차 이전이 전부 0/0/0 (2026-08-22 실측).
-  // 합계 0 은 미공개·미상이지 실제 0 이 아니므로 null 로 저장한다
-  // (sync-draw 의 재보정 가드와 UI 가 null 을 기준으로 동작).
-  const types = [it.winType1, it.winType2, it.winType3].map((v) => v ?? 0);
-  const hasTypes = types.some((v) => v > 0);
+  // 원본 값을 그대로 저장한다 — 0 을 null 로 바꾸지 않는다. 추첨 직후 미공개 값(당첨자수·당첨금·판매액·
+  // 1등 구매유형)은 전부 0 으로 오고, 공개 여부는 lib/draw-state.mjs 의 묶음 단위 판정이 담당한다
+  // (2026-09-05: 개별 필드 0 은 이월 회차의 1등 0명, 반자동 0 등 실제 값이라 null 로 바꾸면 정보가 깨진다).
   return {
     draw_no: it.ltEpsd,
     draw_date: ymd(String(it.ltRflYmd)),
@@ -136,9 +133,10 @@ export function mapDraw(it) {
     r3_winners: it.rnk3WnNope, r3_prize_each: it.rnk3WnAmt, r3_prize_total: it.rnk3SumWnAmt,
     r4_winners: it.rnk4WnNope, r4_prize_each: it.rnk4WnAmt, r4_prize_total: it.rnk4SumWnAmt,
     r5_winners: it.rnk5WnNope, r5_prize_each: it.rnk5WnAmt, r5_prize_total: it.rnk5SumWnAmt,
-    first_auto: hasTypes ? types[0] : null,
-    first_manual: hasTypes ? types[1] : null,
-    first_semi: hasTypes ? types[2] : null,
+    // API 는 세 유형을 항상 0 이상 정수로 준다. 키가 빠지는 경우만 0 으로 본다(열을 한 표현으로 유지).
+    first_auto: it.winType1 ?? 0,
+    first_manual: it.winType2 ?? 0,
+    first_semi: it.winType3 ?? 0,
     sales_total: it.wholEpsdSumNtslAmt,
     prize_pool: it.rlvtEpsdSumNtslAmt,
   };

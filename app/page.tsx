@@ -5,6 +5,7 @@ import { StoreBadges } from "@/components/store-badge";
 import { dateK, dateShort, wonShort } from "@/lib/format";
 import { HOME_DESCRIPTION, HOME_TITLE, pageMeta } from "@/lib/seo";
 import { drawNumbers, isOnlineStore, rankByMissed, storeDisplayName } from "@/lib/lotto";
+import { isPrizePublished } from "@/lib/draw-state.mjs";
 import { getDraws, getLatestDraw, getNumberFrequency, getRanking } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -49,20 +50,23 @@ export default async function HomePage() {
           <BallRow numbers={drawNumbers(latest)} bonus={latest.bonus} size="lg" />
         </div>
         {/* 375px 에선 박스 2개를 세로로 쌓고 라벨·값을 한 줄에(값이 줄바꿈되지 않게), sm 이상은 기존 2열 박스 */}
-        <dl className="mt-5 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 sm:gap-3">
-          <div className="flex items-baseline gap-2 rounded-lg bg-stone-50 px-3 py-2 sm:block sm:p-3">
-            <dt className="text-stone-500">1등</dt>
-            <dd className="font-semibold sm:mt-0.5">
-              {latest.r1_winners ?? "-"}명 · 각 {wonShort(latest.r1_prize_each)}
-            </dd>
-          </div>
-          <div className="flex items-baseline gap-2 rounded-lg bg-stone-50 px-3 py-2 sm:block sm:p-3">
-            <dt className="text-stone-500">2등</dt>
-            <dd className="font-semibold sm:mt-0.5">
-              {latest.r2_winners ?? "-"}명 · 각 {wonShort(latest.r2_prize_each)}
-            </dd>
-          </div>
-        </dl>
+        {/* 당첨금 묶음 공개 전(추첨 직후 ~20:49)엔 1등·2등 상자를 아예 그리지 않는다 — 판정은 lib/draw-state */}
+        {isPrizePublished(latest) && (
+          <dl className="mt-5 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 sm:gap-3">
+            <div className="flex items-baseline gap-2 rounded-lg bg-stone-50 px-3 py-2 sm:block sm:p-3">
+              <dt className="text-stone-500">1등</dt>
+              <dd className="font-semibold sm:mt-0.5">
+                {latest.r1_winners ?? "-"}명 · 각 {wonShort(latest.r1_prize_each)}
+              </dd>
+            </div>
+            <div className="flex items-baseline gap-2 rounded-lg bg-stone-50 px-3 py-2 sm:block sm:p-3">
+              <dt className="text-stone-500">2등</dt>
+              <dd className="font-semibold sm:mt-0.5">
+                {latest.r2_winners ?? "-"}명 · 각 {wonShort(latest.r2_prize_each)}
+              </dd>
+            </div>
+          </dl>
+        )}
         <Link
           href={`/history/${latest.draw_no}`}
           className="mt-4 inline-block text-sm font-medium text-amber-600 hover:underline"

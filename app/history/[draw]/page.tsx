@@ -9,6 +9,7 @@ import { dateK, won, wonShort } from "@/lib/format";
 import {
   drawNumbers, firstTypeSummary, isOnlineStore, methodLabel, methodSummary, storeDisplayName,
 } from "@/lib/lotto";
+import { isPrizePublished, isSalesPublished } from "@/lib/draw-state.mjs";
 import { getDraw, getDrawWins, getLatestDraw, type DrawWin } from "@/lib/queries";
 import { pageMeta } from "@/lib/seo";
 
@@ -24,17 +25,20 @@ function drawSummary(draw: NonNullable<Awaited<ReturnType<typeof getDraw>>>): st
   const parts = [
     `로또 6/45 ${draw.draw_no}회(${dateK(draw.draw_date)} 추첨) 당첨번호 ${nums}, 보너스 ${draw.bonus}.`,
   ];
-  const ranks = ([1, 2, 3] as const)
-    .map((r) => {
-      const n = draw[`r${r}_winners` as const];
-      const each = draw[`r${r}_prize_each` as const];
-      return n === null ? null : `${r}등 ${n.toLocaleString("ko-KR")}명${each === null ? "" : ` 각 ${won(each)}`}`;
-    })
-    .filter((x): x is string => x !== null);
-  if (ranks.length) parts.push(`${ranks.join(", ")}.`);
+  // 미공개 묶음(당첨금·판매액)은 문장 자체를 넣지 않는다 — 화면과 같은 판정(lib/draw-state)
+  if (isPrizePublished(draw)) {
+    const ranks = ([1, 2, 3] as const)
+      .map((r) => {
+        const n = draw[`r${r}_winners` as const];
+        const each = draw[`r${r}_prize_each` as const];
+        return n === null ? null : `${r}등 ${n.toLocaleString("ko-KR")}명${each === null ? "" : ` 각 ${won(each)}`}`;
+      })
+      .filter((x): x is string => x !== null);
+    if (ranks.length) parts.push(`${ranks.join(", ")}.`);
+  }
   const types = firstTypeSummary(draw);
   if (types) parts.push(`1등 구매 유형 ${types}.`);
-  if (draw.sales_total !== null) parts.push(`회차 판매액 ${wonShort(draw.sales_total)}.`);
+  if (isSalesPublished(draw)) parts.push(`회차 판매액 ${wonShort(draw.sales_total)}.`);
   parts.push("1·2등 배출점 목록 포함.");
   return parts.join(" ");
 }
@@ -151,7 +155,7 @@ export default async function DrawDetailPage({
     each: draw[`r${r}_prize_each` as const],
     total: draw[`r${r}_prize_total` as const],
   }));
-  // 1등 구매유형 요약 — 0건 유형 생략, 공개 전·데이터 없는 구회차(≤261)는 null 이라 줄 자체를 숨긴다.
+  // 1등 구매유형 요약 — 0건 유형 생략, 전부 0(공개 전·데이터 없는 구회차 ≤261)이면 null 이라 줄 자체를 숨긴다.
   const firstTypes = firstTypeSummary(draw);
 
   return (
@@ -207,38 +211,41 @@ export default async function DrawDetailPage({
           <BallRow numbers={drawNumbers(draw)} bonus={draw.bonus} size="lg" />
         </div>
         {/* 메타 줄은 한 그룹으로 — 구매유형 줄이 없어도 공과의 간격(mt-3)이 같게 유지된다 */}
-        {(firstTypes || draw.sales_total !== null) && (
+        {(firstTypes || isSalesPublished(draw)) && (
           <div className="mt-3 space-y-1 text-sm text-stone-500">
             {firstTypes && <p>1등 구매 유형 — {firstTypes}</p>}
-            {draw.sales_total !== null && <p>회차 판매액 {wonShort(draw.sales_total)}</p>}
+            {isSalesPublished(draw) && <p>회차 판매액 {wonShort(draw.sales_total)}</p>}
           </div>
         )}
       </section>
 
-      <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
-        <h2 className="font-bold">{draw.draw_no}회 등위별 당첨금</h2>
-        {/* 375px 에서 좌우 스크롤 없이 다 보이도록 총액 열은 sm 이상에서만 */}
-        <table className="mt-3 w-full text-sm">
-          <thead>
-            <tr className="border-b border-stone-200 text-left text-xs text-stone-500">
-              <th className="py-2 font-medium">등위</th>
-              <th className="py-2 text-right font-medium">당첨자</th>
-              <th className="py-2 text-right font-medium">1인당 당첨금</th>
-              <th className="hidden py-2 text-right font-medium sm:table-cell">총 당첨금</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rankRows.map((r) => (
-              <tr key={r.rank} className="border-b border-stone-100 last:border-0">
-                <td className="py-2 font-semibold">{r.rank}등</td>
-                <td className="py-2 text-right">{r.winners?.toLocaleString("ko-KR") ?? "-"}명</td>
-                <td className="py-2 text-right">{won(r.each)}</td>
-                <td className="hidden py-2 text-right text-stone-500 sm:table-cell">{wonShort(r.total)}</td>
+      {/* 당첨금 묶음 공개 전(추첨 직후 ~20:49)엔 섹션 자체를 그리지 않는다 — 판정은 lib/draw-state */}
+      {isPrizePublished(draw) && (
+        <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
+          <h2 className="font-bold">{draw.draw_no}회 등위별 당첨금</h2>
+          {/* 375px 에서 좌우 스크롤 없이 다 보이도록 총액 열은 sm 이상에서만 */}
+          <table className="mt-3 w-full text-sm">
+            <thead>
+              <tr className="border-b border-stone-200 text-left text-xs text-stone-500">
+                <th className="py-2 font-medium">등위</th>
+                <th className="py-2 text-right font-medium">당첨자</th>
+                <th className="py-2 text-right font-medium">1인당 당첨금</th>
+                <th className="hidden py-2 text-right font-medium sm:table-cell">총 당첨금</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+            </thead>
+            <tbody>
+              {rankRows.map((r) => (
+                <tr key={r.rank} className="border-b border-stone-100 last:border-0">
+                  <td className="py-2 font-semibold">{r.rank}등</td>
+                  <td className="py-2 text-right">{r.winners?.toLocaleString("ko-KR") ?? "-"}명</td>
+                  <td className="py-2 text-right">{won(r.each)}</td>
+                  <td className="hidden py-2 text-right text-stone-500 sm:table-cell">{wonShort(r.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="space-y-4">
         <h2 className="font-bold">{draw.draw_no}회 1·2등 배출점</h2>

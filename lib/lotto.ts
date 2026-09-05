@@ -68,7 +68,7 @@ export function methodSummary(methods: Map<string, number>): string {
 }
 
 // 회차의 1등 구매유형 요약: "자동 10 · 수동 12 · 반자동 1" — 0건 유형은 생략,
-// 전부 0(공개 전·데이터 없는 구회차)이면 null (sync 가 합계 0 을 null 로 정규화).
+// 전부 0(공개 전·데이터 없는 구회차 — 원본 0 그대로 저장)이면 null. 공개 판정 규칙은 lib/draw-state.mjs.
 export function firstTypeSummary(
   draw: Pick<Draw, "first_auto" | "first_manual" | "first_semi">,
 ): string | null {
