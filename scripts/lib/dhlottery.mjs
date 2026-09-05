@@ -51,7 +51,10 @@ export function expectedLatestDraw(now = new Date()) {
 // curl(요청마다 새 연결)은 같은 조건에서 전부 성공 — 그래서 요청마다 새 연결을 쓴다.
 function httpGetText(url) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { agent: false, headers: { accept: "application/json" } }, (res) => {
+    // timeout 옵션은 소켓 생성 시점에 걸려 TCP 연결 단계(SYN 무응답)까지 덮는다. req.setTimeout 만으로는
+    // 연결이 된 뒤에야 적용돼, 스로틀이 SYN 을 버리면 OS connect 한도(~130초)까지 매달렸다
+    // (2026-09-05 세종 런 실측: connect ETIMEDOUT 136s ×2).
+    const req = https.get(url, { agent: false, timeout: TIMEOUT_MS, headers: { accept: "application/json" } }, (res) => {
       // 구 endpoint 는 전부 302 로 죽었다 — 200 외 전부(리다이렉트 포함) 실패로 취급.
       if (res.statusCode !== 200) {
         res.resume();
@@ -63,7 +66,7 @@ function httpGetText(url) {
       res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
       res.on("error", reject);
     });
-    req.setTimeout(TIMEOUT_MS, () => req.destroy(new Error(`request timeout (${TIMEOUT_MS}ms)`)));
+    req.on("timeout", () => req.destroy(new Error(`request timeout (${TIMEOUT_MS}ms)`)));
     req.on("error", reject);
   });
 }
