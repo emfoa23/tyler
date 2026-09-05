@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BallRow } from "@/components/ball";
 import { dateShort, wonShort } from "@/lib/format";
 import { drawNumbers } from "@/lib/lotto";
+import { isPrizePublished } from "@/lib/draw-state.mjs";
 import { DRAWS_PER_PAGE, getDraws } from "@/lib/queries";
 import { pageMeta } from "@/lib/seo";
 
@@ -34,9 +35,11 @@ export default async function HistoryPage({
               <span className="flex flex-wrap items-baseline gap-x-3">
                 <span className="font-semibold">{d.draw_no}회</span>
                 <span className="text-xs text-stone-500">{dateShort(d.draw_date)}</span>
-                <span className="ml-auto text-xs text-stone-500">
-                  1등 {d.r1_winners ?? "-"}명 · 각 {wonShort(d.r1_prize_each)}
-                </span>
+                {isPrizePublished(d) && (
+                  <span className="ml-auto text-xs text-stone-500">
+                    1등 {d.r1_winners ?? "-"}명 · 각 {wonShort(d.r1_prize_each)}
+                  </span>
+                )}
               </span>
               <span className="mt-1.5 block">
                 <BallRow numbers={drawNumbers(d)} bonus={d.bonus} size="sm" />
