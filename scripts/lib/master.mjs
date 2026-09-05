@@ -32,9 +32,10 @@ export async function syncMaster(queryNames) {
     for (let p = 2; p <= pages; p++) {
       const page = await fetchMasterPage(query, p);
       rows.push(...(page.list ?? []));
-      // ~40페이지 연속 버스트가 IP 차단을 트리거하는 것이 반복 실측됨 — 더 예의 있게.
+      // 페이지 간 1.2s 는 유지. 25페이지마다 두던 10s 쿨다운은 제거 — 스로틀은 새 TCP 연결에 걸리므로
+      // (dhlottery.mjs) 쿨다운이 keep-alive 소켓을 유휴로 닫히게 해 오히려 51·101페이지에서 새 연결이
+      // 막혔다(2026-09-06 서울 런: 1~50·52~100 은 실패 0, 51·101 만 15s 타임아웃 7~8회). 한 연결로 쉼 없이 간다.
       await sleep(1200);
-      if (p % 25 === 0) await sleep(10_000);
     }
     // 페이징 중 목록이 흔들려 일부가 비면 해당 질의를 실패로 처리한다
     // (부분 수집 상태로 closed 마킹이 돌면 멀쩡한 지점이 폐점 처리되므로).
