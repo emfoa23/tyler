@@ -46,15 +46,20 @@ export function expectedLatestDraw(now = new Date()) {
   return BASE_DRAW.no + Math.max(0, weeks);
 }
 
-// fetch(undici) 의 keep-alive 소켓이 쿨다운/DB작업 등 유휴 구간에서 서버측에 끊기고,
-// 죽은 소켓 재사용이 fetch failed 로 이어지는 것이 실측됨 (실패 전건이 유휴 직후 첫 요청).
-// curl(요청마다 새 연결)은 같은 조건에서 전부 성공 — 그래서 요청마다 새 연결을 쓴다.
+// 전송: 연결 하나를 재사용(keep-alive, 소켓 1개)한다.
+// 2026-09-05 러너 실측 — 스로틀의 실체는 요청이 아니라 **새 TCP 연결(SYN)에 대한 제한**으로 보인다:
+// 요청마다 새 연결(agent:false)을 열면 5~6페이지 뒤부터 SYN 이 버려져 connect ETIMEDOUT(~136s) / 15s 타임아웃이
+// 연속됐고(세종·울산 런), 그 사이 성공한 요청은 0.5s 안에 끝났다. 유휴 중 서버가 끊은 소켓을 재사용해 실패하는
+// 문제(이전에 agent:false 로 간 이유)는 (1) 유휴 8초면 소켓을 닫고 (2) 실패 시 재시도가 새 연결을 열게 해서 흡수한다.
+const IDLE_MS = 8_000;
+const agent = new https.Agent({ keepAlive: true, maxSockets: 1, timeout: IDLE_MS });
+
 function httpGetText(url) {
   return new Promise((resolve, reject) => {
     // timeout 옵션은 소켓 생성 시점에 걸려 TCP 연결 단계(SYN 무응답)까지 덮는다. req.setTimeout 만으로는
     // 연결이 된 뒤에야 적용돼, 스로틀이 SYN 을 버리면 OS connect 한도(~130초)까지 매달렸다
     // (2026-09-05 세종 런 실측: connect ETIMEDOUT 136s ×2).
-    const req = https.get(url, { agent: false, timeout: TIMEOUT_MS, headers: { accept: "application/json" } }, (res) => {
+    const req = https.get(url, { agent, timeout: TIMEOUT_MS, headers: { accept: "application/json" } }, (res) => {
       // 구 endpoint 는 전부 302 로 죽었다 — 200 외 전부(리다이렉트 포함) 실패로 취급.
       if (res.statusCode !== 200) {
         res.resume();
@@ -80,7 +85,7 @@ const BACKOFF_CAP_MS = 10_000;
 
 // 모든 호출의 결과를 한 줄씩 남긴다(성공도) — 소요·시도 횟수·오류 종류가 로그에 남아야
 // 다음 주 슬롯 로그만으로 어느 호출이 얼마나 막혔는지 보고 최적화·트러블슈팅할 수 있다.
-async function getData(path, params, { tries = TRIES } = {}) {
+async function getData(path, params, { tries = TRIES, backoffCapMs = BACKOFF_CAP_MS } = {}) {
   const qs = new URLSearchParams(params).toString();
   const url = `${BASE}${path}?${qs}`;
   const label = `${path.slice(path.lastIndexOf("/") + 1).replace(/\.do$/, "")}?${qs}`;
@@ -98,7 +103,7 @@ async function getData(path, params, { tries = TRIES } = {}) {
     } catch (e) {
       lastErr = e;
       warn(`dhlottery fail ${label} try ${i}/${tries} ${Date.now() - t}ms: ${e?.message ?? e}`);
-      if (i < tries) await sleep(Math.min(1000 * i * i, BACKOFF_CAP_MS) + Math.floor(Math.random() * 1000));
+      if (i < tries) await sleep(Math.min(1000 * i * i, backoffCapMs) + Math.floor(Math.random() * 1000));
     }
   }
   throw new Error(`dhlottery request failed after ${tries} tries (${Date.now() - started}ms): ${label} — ${lastErr}`);
@@ -124,13 +129,15 @@ export function fetchWins(epsd) {
 }
 
 // 전국 판매점 마스터. perPage 는 10 고정으로 동작한다.
+// 크롤은 슬롯 시간에 쫓기지 않으므로(잡 30분) 재시도 예산을 넉넉히 준다 — 스로틀 차단은 2~3분씩 이어졌다(실측).
+// 8회·백오프 상한 30s = 페이지당 최악 약 4분.
 export function fetchMasterPage(sido, pageNum) {
   return getData("/prchsplcsrch/selectLtShp.do", {
     srchCtpvNm: sido,
     srchSggNm: "",
     pageNum,
     recordCountPerPage: 10,
-  });
+  }, { tries: 8, backoffCapMs: 30_000 });
 }
 
 const ymd = (s) => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
