@@ -8,6 +8,7 @@
 import { MASTER_QUERIES, fetchMasterPage, mapMasterStore } from "./dhlottery.mjs";
 import { chunks, sleep, uniqueBy } from "./util.mjs";
 import { patchCount, upsert } from "./supa.mjs";
+import { log } from "./log.mjs";
 
 export async function syncMaster(queryNames) {
   const queries = queryNames?.length
@@ -27,6 +28,7 @@ export async function syncMaster(queryNames) {
     const total = first.total ?? 0;
     const rows = [...(first.list ?? [])];
     const pages = Math.ceil(total / 10);
+    log(`master ${query}: ${total} stores, ${pages} pages`);
     for (let p = 2; p <= pages; p++) {
       const page = await fetchMasterPage(query, p);
       rows.push(...(page.list ?? []));
@@ -56,9 +58,9 @@ export async function syncMaster(queryNames) {
     }
     grand += mapped.length;
     closedTotal += closed;
-    console.log(`master ${query}: ${mapped.length}/${total} upserted, ${closed} closed [marks: ${marks.join(",") || "-"}]`);
+    log(`master ${query}: ${mapped.length}/${total} upserted, ${closed} closed [marks: ${marks.join(",") || "-"}]`);
   }
 
-  console.log(`master sync done (${queries.length}/${MASTER_QUERIES.length} queries): ${grand} upserted, ${closedTotal} closed`);
+  log(`master sync done (${queries.length}/${MASTER_QUERIES.length} queries): ${grand} upserted, ${closedTotal} closed`);
   return { stores: grand, closed: closedTotal };
 }

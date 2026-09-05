@@ -31,6 +31,7 @@ cron-job.org (유일한 스케줄러)
   │    당첨결과(기대 회차 1회 조회로 신규 적재 + 지연 필드 재보정) → 생성번호 대조
   │    → 배출점(최신 회차 미적재 시 1회, 추첨 후 12시간 지난 실행은 최근 3회차 재대조) → ISR revalidate → IndexNow 핑
   ├─ sync-stores  일요일 새벽 주 1회 — 전국 판매점 마스터 upsert + 미출현 지점 closed 마킹
+  │    질의(시도)마다 별도 잡·별도 러너 IP(matrix, 동시 2) — 한 러너 순차 긁기는 IP 스로틀로 timeout
   └─ keepalive    매일 — GET /api/ops/keepalive (Supabase 무료 pause 방지)
 ```
 
@@ -49,7 +50,7 @@ cron-job.org (유일한 스케줄러)
   추첨 직후엔 당첨자수·당첨금·판매액·1등 구매유형이 null 이 아니라 0 으로 온다(번호 ~20:42 → 당첨금·판매액 ~20:49 → 구매유형·배출점 ~21:00, 2026-09-05 실측). **DB 에는 원본 0 을 그대로 저장**하고 공개 여부는 `lib/draw-state.mjs` 가 묶음 단위로 판정한다 — 당첨금 묶음 = 5등 당첨자 > 0, 판매액 > 0, 구매유형 = 1등이 있는데 세 유형 합이 0 이면 미공개. 화면은 미공개 묶음을 아예 그리지 않고(홈 1·2등 상자, 목록의 1등 줄, 상세의 등위별 표·판매액 줄), sync-draw 는 같은 판정으로 최신 회차를 재조회한다. 개별 0(이월 회차의 1등 0명, 반자동 0 등)은 실제 값이라 그대로 보인다
 - 회차별 1·2등 배출점 `/wnprchsplcsrch/selectLtWnShp.do?srchWnShpRnk=all&srchLtEpsd={회차}` — 262회차부터, 행=당첨 게임 1건
 - 전국 판매점 마스터 `/prchsplcsrch/selectLtShp.do?srchCtpvNm={시도}` — 시도는 짧은 이름("서울"), 페이지당 10건 고정
-- **호출 정책·관측**(2026-09-05): 러너 IP 는 짧은 버스트에도 스로틀되므로 sync-draw 는 슬롯당 호출을 1~2회로 유지한다(기대 회차 1회 조회로 신규+지연 필드, 배출점은 최신 회차 미적재 시만). 재시도는 4회·15s 타임아웃·백오프 1/4/9s(콜당 최악 ~75초, `scripts/lib/dhlottery.mjs`). **모든 호출은 성공·실패를 불문하고 `dhlottery ok|fail <endpoint?query> <ms> (try i/n)` 한 줄**을 남기고 스크립트 단계 로그엔 `[+경과초]` 가 붙는다(`scripts/lib/log.mjs`) — Actions 로그만으로 어느 호출이 얼마나 막혔는지 복원할 수 있다. 검증 훅 `SYNC_NOW=<ISO>` 로 기대 회차·12시간 규칙을 임의 시점으로 시험한다.
+- **호출 정책·관측**(2026-09-05): 러너 IP 는 짧은 버스트에도 스로틀되므로 sync-draw 는 슬롯당 호출을 1~2회로 유지한다(기대 회차 1회 조회로 신규+지연 필드, 배출점은 최신 회차 미적재 시만). 재시도는 4회·15s 타임아웃(TCP 연결 단계 포함 — 스로틀은 SYN 을 버려 OS 한도 ~130초까지 매달리는 형태)·백오프 1/4/9s(콜당 최악 ~75초, `scripts/lib/dhlottery.mjs`). **모든 호출은 성공·실패를 불문하고 `dhlottery ok|fail <endpoint?query> <ms> (try i/n)` 한 줄**을 남기고 스크립트 단계 로그엔 `[+경과초]` 가 붙는다(`scripts/lib/log.mjs`) — Actions 로그만으로 어느 호출이 얼마나 막혔는지 복원할 수 있다. 검증 훅 `SYNC_NOW=<ISO>` 로 기대 회차·12시간 규칙을 임의 시점으로 시험한다.
 
 ## 개발
 
@@ -127,7 +128,7 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 ```sh
 node scripts/backfill.mjs all      # 전체 백필 — Actions 의 backfill 워크플로로도 dispatch 가능
 node scripts/sync-draw.mjs         # 주간 동기화 (Actions 가 실행하는 것과 동일)
-node scripts/sync-stores.mjs       # 마스터 동기화
+node scripts/sync-stores.mjs "서울,경기"   # 마스터 동기화(질의 부분집합, 비우면 전국) — Actions 는 질의별 matrix 잡, 입력 queries=["서울","경기"]
 ```
 
 배포는 **Vercel GitHub 연동**(2026-08-23 연결, production branch `main`) — PR 머지(= main push)마다 자동 프로덕션 배포,

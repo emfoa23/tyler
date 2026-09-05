@@ -1,13 +1,17 @@
 # 주 1회 전국 판매점 마스터 동기화 (일요일 새벽, cron-job.org 가 dispatch).
-# upsert + 미출현 지점 closed 마킹(시도 단위 자기완결) — 전량 교체가 아니므로 배출 이력이 보존된다.
-# 시도별 즉시 반영이라 중간에 죽어도 완료한 시도는 정합 상태로 남는다.
+# upsert + 미출현 지점 closed 마킹(질의 단위 자기완결) — 전량 교체가 아니므로 배출 이력이 보존된다.
+#
+# 질의(시도)마다 별도 잡 = 별도 러너 IP 로 돈다. 한 러너가 17개 질의 약 1,480페이지를 순서대로 긁던
+# 구조는 IP 스로틀에 걸려 2026-08-23·08-30 두 번 모두 75분 timeout 으로 한 질의도 못 끝냈다
+# (백필 때 확인한 처방 = 질의 분할 dispatch, 런마다 새 IP). 질의는 자기완결이라 병렬·부분 실패에
+# 안전하다 — 완주한 질의만 upsert·closed 마킹하고, 실패한 질의는 다음 주에 다시 돈다.
 name: sync-stores
 
 on:
   workflow_dispatch:
     inputs:
-      arg:
-        description: "시도 목록 (예: 서울,경기 — 비우면 전국)"
+      queries:
+        description: '질의 목록 JSON 배열(예: ["서울","경기"]) — 비우면 전국 17개 질의'
         required: false
         default: ""
 
@@ -21,14 +25,21 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    # 가장 큰 질의(서울)도 페이지 pacing 포함 10분 안쪽. 30분을 넘기면 스로틀이라 다음 주에 맡긴다.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        # scripts/lib/dhlottery.mjs MASTER_QUERIES 의 query 이름과 같아야 한다 ('전남광주' 통합 권역 포함).
+        query: ${{ fromJSON(inputs.queries || '["서울","부산","대구","인천","대전","울산","세종","경기","강원","충북","충남","전북","경북","경남","제주","전남광주","전남"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Sync nationwide store master
-        run: node scripts/sync-stores.mjs "${{ inputs.arg }}"
+      - name: Sync store master — ${{ matrix.query }}
+        run: node scripts/sync-stores.mjs "${{ matrix.query }}"
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
