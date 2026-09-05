@@ -1,12 +1,15 @@
 // 자랑하기 이미지 — 클라이언트 캔버스 생성(서버 인프라 0). 회차 당첨 결과를 카드로 그린다.
-// 내용: 회차 헤더·등수 요약·당첨번호·당첨 세트(맞춘 번호 하이라이트)·워터마크(lottogen.click).
+// 내용: 회차 헤더·당첨번호·당첨 세트(맞춘 번호 하이라이트, 최대 5개)·워터마크(lottogen.click).
+// 세트 순서는 서버(/api/share → lib/queries getWinningSets)가 준 그대로 = 공유 착지 페이지와 동일
+// (등수 오름차순 → id 오름차순). 2026-09-05: 등수 요약 줄("4등 3개 · 5등 14개")과 "외 당첨 N세트" 줄을
+// 뺐다 — 헤더 아래 당첨번호 행을 48px 당기고, 카드 높이는 세트 수에만 비례한다.
 // 워터마크는 이미지-only 로 공유되는 지면(링크를 버리는 앱)에서 유일한 유입 경로다.
 import { ballColor, drawNumbers, matchedNumbers, RANK_LABEL } from "@/lib/lotto";
-import type { DrawNumbers, GeneratedSet } from "@/lib/types";
+import type { DrawNumbers, WinningSet } from "@/lib/types";
 
 const W = 1080;
 const PAD = 72;
-const MAX_SETS = 5; // 카드가 길어지지 않게 표시 상한(초과분은 "+n세트")
+const MAX_SETS = 5; // 카드가 길어지지 않게 표시 상한 — 등수순이라 상위 5개 = 가장 좋은 세트
 
 const FONT = (weight: number, px: number) =>
   `${weight} ${px}px system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif`;
@@ -53,33 +56,21 @@ export type BragInput = {
   target: number;
   drawDate: string; // YYYY-MM-DD
   draw: DrawNumbers;
-  sets: GeneratedSet[]; // 당첨(matched_rank ≥ 1) 세트만
+  sets: Pick<WinningSet, "numbers" | "matched_rank">[]; // 당첨 세트만, 서버 순서 그대로
 };
 
 /** 회차 자랑 카드 PNG Blob. 실패 시 reject. */
 export function buildBragImage(input: BragInput): Promise<Blob> {
   const { target, drawDate, draw, sets } = input;
   const shown = sets.slice(0, MAX_SETS);
-  const extra = sets.length - shown.length;
-
-  // 등수 요약: "5등 2개 · 4등 1개" (높은 등수 우선)
-  const rankCounts = new Map<number, number>();
-  for (const s of sets) {
-    const r = s.matched_rank ?? 0;
-    if (r >= 1) rankCounts.set(r, (rankCounts.get(r) ?? 0) + 1);
-  }
-  const summary = [...rankCounts.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([r, c]) => `${RANK_LABEL[r] ?? `${r}등`} ${c}개`)
-    .join(" · ");
 
   const setRowH = 108;
-  const H =
-    300 + // 헤더·요약
-    150 + // 당첨번호 행
-    shown.length * setRowH +
-    (extra > 0 ? 56 : 0) +
-    150; // 워터마크 푸터
+  const NUMS_Y = 262; // 당첨번호 공 중심
+  const DIVIDER_Y = 338; // 구분선 — 공 하단과의 간격 43px
+  const FIRST_ROW_Y = DIVIDER_Y + 72; // 첫 세트 공 중심
+  const lastRowY = FIRST_ROW_Y + (Math.max(shown.length, 1) - 1) * setRowH;
+  // 마지막 세트 중심 → 푸터선 132px, 푸터선 → 하단 118px
+  const H = lastRowY + 132 + 118;
 
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -107,20 +98,15 @@ export function buildBragImage(input: BragInput): Promise<Blob> {
   ctx.font = FONT(400, 34);
   ctx.fillText(`${drawDate} 추첨 · lottogen 생성 번호`, PAD, 178);
 
-  // 등수 요약
-  ctx.fillStyle = "#b45309"; // amber-700
-  ctx.font = FONT(800, 46);
-  ctx.fillText(summary, PAD, 254);
-
   // 당첨번호 행
   ctx.fillStyle = "#78716c";
   ctx.font = FONT(600, 30);
-  ctx.fillText("당첨번호", PAD, 320);
+  ctx.fillText("당첨번호", PAD, NUMS_Y + 10);
   const nums = drawNumbers(draw);
   const ballR = 33;
   const gap = 82;
   let bx = PAD + 170;
-  const by = 310;
+  const by = NUMS_Y;
   for (const n of nums) {
     drawBall(ctx, bx, by, ballR, n, false);
     bx += gap;
@@ -140,12 +126,12 @@ export function buildBragImage(input: BragInput): Promise<Blob> {
   ctx.strokeStyle = "#f5f5f4";
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(PAD, 386);
-  ctx.lineTo(W - PAD, 386);
+  ctx.moveTo(PAD, DIVIDER_Y);
+  ctx.lineTo(W - PAD, DIVIDER_Y);
   ctx.stroke();
 
   // 당첨 세트들 — 맞춘 번호만 컬러, 나머지는 dimmed
-  let y = 386 + 72;
+  let y = FIRST_ROW_Y;
   for (const s of shown) {
     const matched = matchedNumbers(s.numbers, draw);
     let x = PAD + 40;
@@ -153,18 +139,12 @@ export function buildBragImage(input: BragInput): Promise<Blob> {
       drawBall(ctx, x, y, 38, n, !matched.has(n));
       x += 94;
     }
-    const rank = s.matched_rank ?? 0;
+    const rank = s.matched_rank;
     ctx.fillStyle = "#b45309";
     ctx.font = FONT(800, 42);
     centerText(ctx, RANK_LABEL[rank] ?? `${rank}등`, W - PAD, y, "right");
     ctx.textAlign = "left";
     y += setRowH;
-  }
-  if (extra > 0) {
-    ctx.fillStyle = "#78716c";
-    ctx.font = FONT(600, 32);
-    ctx.fillText(`외 당첨 ${extra}세트`, PAD + 40, y - 24);
-    y += 56 - setRowH + 108;
   }
 
   // 워터마크 푸터

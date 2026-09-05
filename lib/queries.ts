@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { db } from "./db";
-import type { Draw, RankingRow, Store } from "./types";
+import type { Draw, RankingRow, Store, WinningSet } from "./types";
 
 export const DRAWS_PER_PAGE = 20;
 export const RANKING_PER_PAGE = 30;
@@ -30,6 +30,21 @@ export const getDraw = cache(async (drawNo: number): Promise<Draw | null> => {
   if (error) throw error;
   return data;
 });
+
+// 그 기기의 해당 회차 당첨 세트 — 자랑 이미지와 공유 착지(/share/{token})가 같은 순서를 쓰는 단일 소스:
+// 등수 오름차순(높은 등수 먼저), 같은 등수는 id 오름차순(먼저 만든 세트 먼저). 2026-09-05 통일.
+export async function getWinningSets(clientId: string, drawNo: number): Promise<WinningSet[]> {
+  const { data, error } = await db
+    .from("generated_sets")
+    .select("id, numbers, matched_rank")
+    .eq("client_id", clientId)
+    .eq("target_draw", drawNo)
+    .gte("matched_rank", 1)
+    .order("matched_rank", { ascending: true })
+    .order("id", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as WinningSet[];
+}
 
 export type DrawWin = {
   rank: 1 | 2;

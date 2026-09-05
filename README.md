@@ -60,8 +60,10 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 
 ## 자랑하기·바이럴 루프 (2026-08-29)
 
-당첨만 보기에서 당첨 회차마다 **자랑하기** — 클릭 즉시 캔버스로 자랑 카드를 그려(회차·등수 요약·
-당첨번호·맞춘 번호 하이라이트·`lottogen.click` 워터마크, `lib/brag-image.ts`) **Web Share 시트**를
+당첨만 보기에서 당첨 회차마다 **자랑하기** — 클릭하면 `POST /api/share` 가 토큰과 함께 **그 기기의 해당 회차
+당첨 세트 전건을 착지 페이지와 같은 순서(등수 오름차순 → id 오름차순, `lib/queries` `getWinningSets` 단일 소스)** 로
+돌려주고, 그 세트로 캔버스 카드를 그려(회차·당첨번호·당첨 세트 최대 5개=가장 좋은 세트·맞춘 번호 하이라이트·
+`lottogen.click` 워터마크, `lib/brag-image.ts` — 등수 요약 줄과 "외 N세트" 줄은 2026-09-05 제거) **Web Share 시트**를
 연다(`files` + `text`=링크만 — url 필드는 안드로이드에서 text 와 동일 슬롯이라 중복 방지 차원에서
 미사용, 저장/공유 선택은 OS 시트 몫). 사용자 취소(AbortError)는 무집계, 그 외 실패·미지원은
 이미지 다운로드+링크 클립보드 폴백. 링크 착지 `/share/{token}`(noindex, title "N회 당첨 인증")은 **그 기기의 해당 회차 당첨 내역**
