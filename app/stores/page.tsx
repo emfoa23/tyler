@@ -80,11 +80,12 @@ export default async function StoresPage({
       <StoresFilter rank={rank} months={months ? String(months) : "all"} sido={sido ?? "all"} />
 
       <ol className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white px-4">
-        {visible.map((s, i) => (
+        {visible.map((s) => (
           <li key={s.store_id}>
             <Link href={`/stores/${s.store_id}`} className="flex items-center gap-3 py-3 hover:bg-stone-50">
+              {/* 표준 경쟁 순위 — 동률(전체: 1등·2등 수 모두 같음, 등수 필터: 그 등수 인원 같음)은 같은 번호 */}
               <span className="w-8 shrink-0 text-center font-bold text-stone-400">
-                {offset + i + 1}
+                {s.rnk}
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="flex items-center gap-1.5">

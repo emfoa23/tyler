@@ -4,7 +4,7 @@ import { NumberStatList } from "@/components/number-stat-list";
 import { NumbersFilter } from "@/components/numbers-filter";
 import { SectionTabs } from "@/components/section-tabs";
 import { dateShort } from "@/lib/format";
-import { NUMBERS_TABS, rankByMissed } from "@/lib/lotto";
+import { NUMBERS_TABS, rankByMissed, withCompetitionRank } from "@/lib/lotto";
 import { getLatestDraw, getNumberFrequency } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -39,7 +39,8 @@ export default async function MissingNumbersPage({
       <NumbersFilter basePath="/numbers/missing" bonus={bonus ? "1" : "0"} />
 
       <NumberStatList
-        items={ranked.map((r) => ({
+        items={withCompetitionRank(ranked, (r) => r.missed).map((r) => ({
+          rank: r.rank,
           num: r.num,
           ratio: r.missed / maxMissed,
           primary: `${r.missed}회째`,

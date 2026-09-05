@@ -90,13 +90,13 @@ export default async function HomePage() {
           </Link>
         </div>
         <ol className="mt-3 divide-y divide-stone-100">
-          {top.map((s, i) => (
+          {top.map((s) => (
             <li key={s.store_id}>
               <Link
                 href={`/stores/${s.store_id}`}
                 className="flex items-center gap-3 py-2.5 hover:bg-stone-50"
               >
-                <span className="w-5 text-center font-bold text-stone-400">{i + 1}</span>
+                <span className="w-5 text-center font-bold text-stone-400">{s.rnk}</span>
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="flex items-center gap-1.5">
                     <span className="truncate font-medium">{storeDisplayName(s)}</span>

@@ -2,6 +2,7 @@ import { Ball } from "@/components/ball";
 import { PagedList } from "@/components/paged-list";
 
 export type NumberStatItem = {
+  rank: number; // 표준 경쟁 순위 — 동률은 같은 번호(withCompetitionRank)
   num: number;
   ratio: number; // 막대 길이 (0~1, 뷰의 최댓값 대비)
   primary: string;
@@ -14,10 +15,10 @@ export function NumberStatList({ items }: { items: NumberStatItem[] }) {
     <PagedList
       pageSize={10}
       className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white px-4"
-      items={items.map((r, i) => (
+      items={items.map((r) => (
         <li key={r.num} className="flex items-center gap-3 py-2.5">
           <span className="w-6 shrink-0 text-center text-sm font-bold text-stone-400">
-            {i + 1}
+            {r.rank}
           </span>
           <Ball n={r.num} size="md" />
           <span className="min-w-0 flex-1">
