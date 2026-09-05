@@ -1,4 +1,5 @@
 import type { Draw, DrawNumbers, Store } from "./types";
+import { WEEK_MS, drawMoment } from "./draw-time.mjs";
 
 // 온라인 판매 채널(동행복권 사이트). 배출점 데이터에 지점처럼 포함되며,
 // 순위·지점 페이지에도 예외 없이 포함하되 배지로만 구분한다 (2026-08-16 확정).
@@ -30,12 +31,6 @@ export function matchedNumbers(numbers: number[], draw: DrawNumbers): Set<number
   return new Set(numbers.filter((n) => wins.has(n)));
 }
 
-const WEEK_MS = 7 * 86400_000;
-
-function drawMoment(dateIso: string): number {
-  // 추첨은 매주 토요일 20:35 KST
-  return new Date(`${dateIso}T20:35:00+09:00`).getTime();
-}
 
 // 생성 시점이 귀속될 회차: 아직 추첨되지 않은 다음 회차.
 // DB 동기화 상태가 아니라 추첨 시각 기준으로 계산한다 — 추첨 후 생성된 번호가

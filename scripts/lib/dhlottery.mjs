@@ -2,6 +2,8 @@
 // 전부 GET + UTF-8 JSON. KR IP 기준 헤더 없이 호출 가능.
 import https from "node:https";
 import { sleep } from "./util.mjs";
+import { log, warn } from "./log.mjs";
+import { WEEK_MS, drawMoment } from "../../lib/draw-time.mjs";
 
 const BASE = "https://www.dhlottery.co.kr";
 
@@ -40,8 +42,7 @@ export const ONLINE_STORE_ID = "51100000";
 const BASE_DRAW = { no: 1237, date: "2026-08-15" };
 
 export function expectedLatestDraw(now = new Date()) {
-  const base = new Date(`${BASE_DRAW.date}T20:35:00+09:00`);
-  const weeks = Math.floor((now.getTime() - base.getTime()) / (7 * 86400_000));
+  const weeks = Math.floor((now.getTime() - drawMoment(BASE_DRAW.date)) / WEEK_MS);
   return BASE_DRAW.no + Math.max(0, weeks);
 }
 
@@ -62,29 +63,42 @@ function httpGetText(url) {
       res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
       res.on("error", reject);
     });
-    req.setTimeout(20_000, () => req.destroy(new Error("request timeout")));
+    req.setTimeout(TIMEOUT_MS, () => req.destroy(new Error(`request timeout (${TIMEOUT_MS}ms)`)));
     req.on("error", reject);
   });
 }
 
-async function getData(path, params, { tries = 8 } = {}) {
+// 재시도 예산 — 다음 슬롯이 5분 뒤에 오므로 한 호출이 오래 매달리지 않게 한다.
+// (2026-09-05 실측: 8회·45s 백오프·20s 타임아웃 조합은 콜당 최악 5.7분 → 실행이 5~15분씩 늘어져 잡 timeout.)
+// 4회·15s 타임아웃·백오프 1/4/9s(상한 10s) = 콜당 최악 약 75초. IP 스로틀은 다음 슬롯이 흡수한다.
+const TRIES = 4;
+const TIMEOUT_MS = 15_000;
+const BACKOFF_CAP_MS = 10_000;
+
+// 모든 호출의 결과를 한 줄씩 남긴다(성공도) — 소요·시도 횟수·오류 종류가 로그에 남아야
+// 다음 주 슬롯 로그만으로 어느 호출이 얼마나 막혔는지 보고 최적화·트러블슈팅할 수 있다.
+async function getData(path, params, { tries = TRIES } = {}) {
   const qs = new URLSearchParams(params).toString();
   const url = `${BASE}${path}?${qs}`;
+  const label = `${path.slice(path.lastIndexOf("/") + 1).replace(/\.do$/, "")}?${qs}`;
+  const started = Date.now();
   let lastErr;
-  for (let i = 0; i < tries; i++) {
+  for (let i = 1; i <= tries; i++) {
+    const t = Date.now();
     try {
       const json = JSON.parse(await httpGetText(url));
       if (!json || typeof json !== "object" || !("data" in json)) {
         throw new Error("unexpected payload shape");
       }
+      log(`dhlottery ok ${label} ${Date.now() - t}ms (try ${i}/${tries}, total ${Date.now() - started}ms)`);
       return json.data;
     } catch (e) {
       lastErr = e;
-      // IP 스로틀(수십 초~수 분 내 해제)도 같은 재시도로 버틴다 — 상한 45s 지수 백오프.
-      await sleep(Math.min(1000 * (i + 1) * (i + 1), 45_000) + Math.floor(Math.random() * 1000));
+      warn(`dhlottery fail ${label} try ${i}/${tries} ${Date.now() - t}ms: ${e?.message ?? e}`);
+      if (i < tries) await sleep(Math.min(1000 * i * i, BACKOFF_CAP_MS) + Math.floor(Math.random() * 1000));
     }
   }
-  throw new Error(`dhlottery request failed: ${path}?${qs} — ${lastErr}`);
+  throw new Error(`dhlottery request failed after ${tries} tries (${Date.now() - started}ms): ${label} — ${lastErr}`);
 }
 
 // 회차별 당첨결과. 요청 회차를 상단으로 최대 10개(요청 회차부터 아래로)를 돌려준다.
