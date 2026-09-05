@@ -40,6 +40,7 @@ export type RankingRow = {
   r2: number;
   total: number;
   last_win: string;
+  rnk: number; // 표준 경쟁 순위(1,1,1,4) — SQL rank() 가 페이징 전 전체 집합에서 계산
 };
 
 export type GeneratedSet = {

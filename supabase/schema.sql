@@ -63,8 +63,9 @@ alter table stores enable row level security;
 alter table store_wins enable row level security;
 alter table generated_sets enable row level security;
 
--- 기간 필터는 월 단위(p_months: 6·12·60). 파라미터명 변경은 CREATE OR REPLACE 불가라
--- 재배포 시 DROP 후 재생성 + GRANT 재적용이 필요하다 (2026-08-20 p_years→p_months 전환).
+-- 기간 필터는 월 단위(p_months: 6·12·60). 파라미터명·반환 컬럼 변경은 CREATE OR REPLACE 불가라
+-- 재배포 시 DROP 후 재생성 + GRANT 재적용이 필요하다 (2026-08-20 p_years→p_months 전환,
+-- 2026-09-05 rnk 추가 — begin/commit 으로 묶으면 함수가 비는 순간 없이 교체된다).
 create or replace function store_ranking(
   p_rank text default 'all',
   p_months integer default null,
@@ -73,24 +74,30 @@ create or replace function store_ranking(
   p_offset integer default 0
 ) returns table (
   store_id text, name text, sido text, sigungu text, address text, status text,
-  r1 bigint, r2 bigint, total bigint, last_win date
+  r1 bigint, r2 bigint, total bigint, last_win date, rnk bigint
 ) language sql stable as $$
-  select s.store_id, s.name, s.sido, s.sigungu, s.address, s.status,
-         count(*) filter (where w.rank = 1) as r1,
-         count(*) filter (where w.rank = 2) as r2,
-         count(*) as total,
-         max(w.draw_date) as last_win
-  from store_wins w
-  join stores s on s.store_id = w.store_id
-  where (p_rank = 'all' or w.rank = p_rank::smallint)
-    and (p_months is null or w.draw_date >= (current_date - make_interval(months => p_months)))
-    -- 온라인 채널(51100000)은 특정 시도 소속이 아니므로 지역 필터에선 제외, 전국일 때만 포함
-    and (p_sido is null or (s.sido = p_sido and s.store_id <> '51100000'))
-  group by s.store_id
-  -- 1등 우선, 동률은 2등 순 — rank 필터 모드에선 해당 등수 count 만 남아 자연히 그 등수 desc 가 된다
-  order by count(*) filter (where w.rank = 1) desc,
-           count(*) filter (where w.rank = 2) desc,
-           s.store_id asc
+  with agg as (
+    select s.store_id, s.name, s.sido, s.sigungu, s.address, s.status,
+           count(*) filter (where w.rank = 1) as r1,
+           count(*) filter (where w.rank = 2) as r2,
+           count(*) as total,
+           max(w.draw_date) as last_win
+    from store_wins w
+    join stores s on s.store_id = w.store_id
+    where (p_rank = 'all' or w.rank = p_rank::smallint)
+      and (p_months is null or w.draw_date >= (current_date - make_interval(months => p_months)))
+      -- 온라인 채널(51100000)은 특정 시도 소속이 아니므로 지역 필터에선 제외, 전국일 때만 포함
+      and (p_sido is null or (s.sido = p_sido and s.store_id <> '51100000'))
+    group by s.store_id
+  )
+  select store_id, name, sido, sigungu, address, status, r1, r2, total, last_win,
+         -- 표준 경쟁 순위(1,1,1,4): 정렬 키(1등 수, 2등 수)가 모두 같을 때만 동률.
+         -- 등수 필터 모드에선 다른 등수 count 가 0 이라 그 등수 인원만으로 동률이 정해진다.
+         -- 페이징(limit/offset) 전에 전체 집합에서 계산되므로 페이지가 바뀌어도 순위가 이어진다.
+         rank() over (order by r1 desc, r2 desc) as rnk
+  from agg
+  -- 1등 우선, 동률은 2등 순, 표시 순서 안정화용 store_id (순위 값에는 영향 없음)
+  order by r1 desc, r2 desc, store_id asc
   limit p_limit offset p_offset
 $$;
 

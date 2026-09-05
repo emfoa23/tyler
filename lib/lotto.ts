@@ -100,6 +100,22 @@ export function rankByMissed<T extends { num: number; last_draw: number | null }
     .sort((a, b) => b.missed - a.missed || a.num - b.num);
 }
 
+// 표준 경쟁 순위(1,1,1,4) — 이미 정렬된 목록에서 key 가 앞 항목과 같으면 같은 순위, 다르면 index+1.
+// 동률 판정 키는 그 목록의 정렬 키와 같아야 한다(자주 나오는 번호=출현 횟수, 안나온 번호=미출현 회차수).
+// 명당 순위는 서버 페이징이라 클라이언트에서 계산할 수 없어 SQL rank() 가 준다(store_ranking.rnk).
+export function withCompetitionRank<T>(rows: T[], key: (row: T) => number): (T & { rank: number })[] {
+  let rank = 0;
+  let prev: number | undefined;
+  return rows.map((row, i) => {
+    const k = key(row);
+    if (k !== prev) {
+      rank = i + 1;
+      prev = k;
+    }
+    return { ...row, rank };
+  });
+}
+
 // 기간 필터 공통 옵션 (명당 순위·번호 통계) — URL/RPC 는 월 단위
 export const MONTHS_OPTIONS = [
   { value: "all", label: "전체 기간" },

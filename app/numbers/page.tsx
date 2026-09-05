@@ -4,7 +4,7 @@ import { NumberStatList } from "@/components/number-stat-list";
 import { NumbersFilter } from "@/components/numbers-filter";
 import { SectionTabs } from "@/components/section-tabs";
 import { dateShort } from "@/lib/format";
-import { NUMBERS_TABS } from "@/lib/lotto";
+import { NUMBERS_TABS, withCompetitionRank } from "@/lib/lotto";
 import { getNumberFrequency } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -38,7 +38,8 @@ export default async function NumbersPage({
       <NumbersFilter basePath="/numbers" months={months ? String(months) : "all"} bonus={bonus ? "1" : "0"} />
 
       <NumberStatList
-        items={rows.map((r) => ({
+        items={withCompetitionRank(rows, (r) => r.cnt).map((r) => ({
+          rank: r.rank,
           num: r.num,
           ratio: r.cnt / maxCnt,
           primary: `${r.cnt.toLocaleString("ko-KR")}회`,
