@@ -29,6 +29,7 @@ cron-job.org (유일한 스케줄러)
   │    당첨결과(기대 회차 1회 조회로 신규 적재 + 지연 필드 재보정) → 생성번호 대조
   │    → 배출점(최신 회차 미적재 시 1회, 추첨 후 12시간 지난 실행은 최근 3회차 재대조) → ISR revalidate → IndexNow 핑
   ├─ sync-stores  일요일 새벽 주 1회 — 전국 판매점 마스터 upsert + 미출현 지점 closed 마킹
+  │    질의(시도)마다 별도 잡·별도 러너 IP(matrix, 동시 2) — 한 러너 순차 긁기는 IP 스로틀로 timeout
   └─ keepalive    매일 — GET /api/ops/keepalive (Supabase 무료 pause 방지)
 ```
 
@@ -123,7 +124,7 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 ```sh
 node scripts/backfill.mjs all      # 전체 백필 — Actions 의 backfill 워크플로로도 dispatch 가능
 node scripts/sync-draw.mjs         # 주간 동기화 (Actions 가 실행하는 것과 동일)
-node scripts/sync-stores.mjs       # 마스터 동기화
+node scripts/sync-stores.mjs "서울,경기"   # 마스터 동기화(질의 부분집합, 비우면 전국) — Actions 는 질의별 matrix 잡, 입력 queries=["서울","경기"]
 ```
 
 배포는 **Vercel GitHub 연동**(2026-08-23 연결, production branch `main`) — PR 머지(= main push)마다 자동 프로덕션 배포,
