@@ -51,7 +51,9 @@ export function expectedLatestDraw(now = new Date()) {
 // 요청마다 새 연결(agent:false)을 열면 5~6페이지 뒤부터 SYN 이 버려져 connect ETIMEDOUT(~136s) / 15s 타임아웃이
 // 연속됐고(세종·울산 런), 그 사이 성공한 요청은 0.5s 안에 끝났다. 유휴 중 서버가 끊은 소켓을 재사용해 실패하는
 // 문제(이전에 agent:false 로 간 이유)는 (1) 유휴 8초면 소켓을 닫고 (2) 실패 시 재시도가 새 연결을 열게 해서 흡수한다.
-const IDLE_MS = 8_000;
+// 유휴 30s — 질의 사이 DB upsert 등 짧은 멈춤에 소켓이 닫혀 새 연결(=스로틀 대상)을 열지 않게. 서버가 먼저 끊은
+// 소켓은 agent 가 풀에서 제거하고, 경합으로 실패하면 재시도가 새 연결을 연다(15s 타임아웃이 아니라 즉시 실패).
+const IDLE_MS = 30_000;
 const agent = new https.Agent({ keepAlive: true, maxSockets: 1, timeout: IDLE_MS });
 
 function httpGetText(url) {
