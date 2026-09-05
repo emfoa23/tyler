@@ -4,9 +4,10 @@ import { useState } from "react";
 import { buildBragImage } from "@/lib/brag-image";
 import { trackShare } from "@/lib/analytics-client";
 import { getClientId } from "@/lib/client-id";
-import type { DrawNumbers, GeneratedSet } from "@/lib/types";
+import type { DrawNumbers, GeneratedSet, WinningSet } from "@/lib/types";
 
-// 자랑하기 — 클릭 즉시 이미지 생성 → Web Share 시트(이미지 + text=링크만, url 필드 미사용:
+// 자랑하기 — 클릭 시 토큰과 당첨 세트를 서버에서 받아(착지 페이지와 같은 순서) 이미지 생성 → Web Share 시트
+// (이미지 + text=링크만, url 필드 미사용:
 // 안드로이드는 url 도 EXTRA_TEXT 로 합쳐지므로 동등하고, 둘 다 넣으면 링크가 중복 표기된다.
 // 저장/공유 선택은 OS 시트가 제공 — 서비스에서 분기하지 않는다(사용자 확정 설계).
 // Web Share 미지원(데스크탑 일부)은 이미지 다운로드 + 링크 클립보드 복사로 폴백.
@@ -29,24 +30,24 @@ export function BragButton({
     if (state === "busy") return;
     setState("busy");
     try {
-      // 토큰 발급(개인화 착지)과 이미지 생성을 병렬로 — share() 의 user-activation 창 안에 끝낸다.
-      const [blob, token] = await Promise.all([
-        buildBragImage({ target, drawDate, draw, sets: wins }),
-        fetch("/api/share", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ clientId: getClientId(), drawNo: target }),
-        })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((b) => (typeof b?.token === "string" ? b.token : null))
-          .catch(() => null),
-      ]);
-      if (!token) {
+      // 1) 토큰 발급 + 당첨 세트(서버가 착지 페이지와 같은 순서로 준다 — 화면에 로드된 일부가 아니라 전건)
+      // 2) 그 세트로 이미지 생성. 순차지만 fetch 뒤 캔버스는 수십 ms 라 share() 의 user-activation 창 안에 끝난다.
+      const body = await fetch("/api/share", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ clientId: getClientId(), drawNo: target }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+      const token: string | null = typeof body?.token === "string" ? body.token : null;
+      const serverSets: WinningSet[] = Array.isArray(body?.sets) ? body.sets : [];
+      if (!token || serverSets.length === 0) {
         // 착지 페이지 없는 공유는 무의미 — 짧게 알리고 종료(레거시 회차 착지는 제거됨)
         setState("error");
         window.setTimeout(() => setState("idle"), 2500);
         return;
       }
+      const blob = await buildBragImage({ target, drawDate, draw, sets: serverSets });
       const file = new File([blob], `lottogen-${target}-win.png`, { type: "image/png" });
       const link = `${window.location.origin}/share/${token}`;
 

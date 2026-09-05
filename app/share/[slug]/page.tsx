@@ -6,7 +6,7 @@ import { BallRow } from "@/components/ball";
 import { db } from "@/lib/db";
 import { dateShort } from "@/lib/format";
 import { drawNumbers, matchedNumbers, RANK_LABEL } from "@/lib/lotto";
-import { getDraw } from "@/lib/queries";
+import { getDraw, getWinningSets } from "@/lib/queries";
 import { pageMeta } from "@/lib/seo";
 import type { Draw } from "@/lib/types";
 
@@ -19,8 +19,6 @@ export const revalidate = 3600;
 
 const TOKEN_RE = /^[0-9a-f]{32}$/;
 
-type WinningSet = { id: number; numbers: number[]; matched_rank: number };
-
 const getShare = cache(async (token: string) => {
   const { data } = await db
     .from("shares")
@@ -29,18 +27,6 @@ const getShare = cache(async (token: string) => {
     .maybeSingle();
   return data ?? null;
 });
-
-async function getWinningSets(clientId: string, drawNo: number): Promise<WinningSet[]> {
-  const { data } = await db
-    .from("generated_sets")
-    .select("id, numbers, matched_rank")
-    .eq("client_id", clientId)
-    .eq("target_draw", drawNo)
-    .gte("matched_rank", 1)
-    .order("matched_rank", { ascending: true })
-    .order("id", { ascending: true });
-  return (data ?? []) as WinningSet[];
-}
 
 async function resolveDrawNo(slug: string): Promise<number | null> {
   if (TOKEN_RE.test(slug)) return (await getShare(slug))?.draw_no ?? null;

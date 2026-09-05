@@ -51,6 +51,9 @@ export type GeneratedSet = {
   created_at: string;
 };
 
+// 그 기기의 해당 회차 당첨 세트(자랑 이미지·공유 착지 공용). 순서는 lib/queries getWinningSets 가 정한다.
+export type WinningSet = Pick<GeneratedSet, "id" | "numbers"> & { matched_rank: number };
+
 export type GenerationStats = {
   total: number;
   devices: number;        // 생성 인원(기기 단위)
