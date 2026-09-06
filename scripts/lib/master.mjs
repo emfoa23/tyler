@@ -11,7 +11,7 @@
 // IndexNow 로 알린다. 캐시가 7일이라 여기서 안 지우면 폐점이 최대 7일 늦게 보인다(lib/cache-policy).
 import { MASTER_QUERIES, fetchMasterPage, mapMasterStore } from "./dhlottery.mjs";
 import { chunks, sleep, uniqueBy } from "./util.mjs";
-import { patchCount, select, upsert } from "./supa.mjs";
+import { patch, patchCount, select, upsert } from "./supa.mjs";
 import { log } from "./log.mjs";
 import { revalidate } from "./ops.mjs";
 import { pingIndexNow } from "./indexnow.mjs";
@@ -81,6 +81,10 @@ export async function syncMaster(queryNames) {
     // 질의 단위로 즉시 upsert — 런이 중간에 죽어도 완주한 질의는 온전히 남는다.
     for (const chunk of chunks(mapped, 500)) {
       await upsert("stores", chunk, "store_id");
+    }
+    // updated_at = "내용이 바뀐 시각"(사이트맵 변경일의 재료) — 실제로 바뀐 지점만 올린다(새 지점은 기본값 now()).
+    for (const part of chunks([...changedIds], IN_CHUNK)) {
+      await patch(`stores?store_id=in.(${part.map(encodeURIComponent).join(",")})`, { updated_at: seenAt });
     }
     // 완주한 질의가 전체 커버리지를 보장하는 시도(marks)만 폐점 마킹. 변경 감지 2: 이번에 닫히는 지점.
     let closed = 0;

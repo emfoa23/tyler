@@ -41,7 +41,8 @@ cron-job.org (유일한 스케줄러)
 ## 검색 노출(SEO)
 
 - 페이지 메타는 `lib/seo.ts` `pageMeta()` 단일 진입점 — title(`lottogen` 제외 15자, 단 지점 상세는 "지점명 — 로또 명당"으로 지점명을 자르지 않음)·description(30자 이내 행동 유도문, title 과 내용 중복 없음)·canonical·OG·Twitter 를 한 쌍의 값으로 채우고 og:image 는 전 페이지 공통 1장. 회차 상세 title/description 엔 당첨번호를 넣지 않는다(페이지에 들어와야 보이게, JSON-LD 에만). 명당은 `?sido=` 변형이 지역명 title + 자기 canonical.
-- `app/sitemap.ts`: 핵심 페이지 + 17개 `?sido=` 명당 변형 + 전 회차 상세(지점 페이지는 제외 — ISR 폭증 방지). `public/robots.txt` 전체 허용 + sitemap.
+- **사이트맵 인덱스**(2026-09-06, `lib/sitemap.ts`): `/sitemap.xml`(인덱스, 검색엔진에 등록하는 유일한 주소) → `/sitemaps/core.xml`(공개 페이지 8 + 시도 17) · `/sitemaps/history.xml`(전 회차, 변경일 = 추첨일·최신 회차만 완성 시각) · `/sitemaps/stores-N.xml`(**배출 이력이 있는 지점만** 5,000개씩, 변경일 = 마지막 배출일·마스터 변경일 중 늦은 쪽, SQL `sitemap_store_entries()`). 배출 이력 없는 지점은 페이지는 열리지만 목록엔 없다(내용이 없어 색인 예산만 쓴다). 7일 캐시, 동기화가 경로로 지운다. `public/robots.txt` 전체 허용 + sitemap.
+- **RSS**(`/rss.xml`, `app/rss.xml/route.ts`): 완성된 최근 8회차 + 최근 2회차의 1·2등 배출 지점 항목(지점당 회차별 1건). 날짜는 `completed_at`. 네이버 RSS 제출과 구글 사이트맵(피드 형식) 양쪽에 등록. 새 페이지를 만드는 게 아니라 기존 페이지를 가리키는 목차.
 - IndexNow(`scripts/lib/indexnow.mjs`, 키 파일 `public/<key>.txt`): sync-draw 가 변경을 반영하면 홈·목록·명당·번호·최신 회차 URL 을 핑(네이버·Bing 등 참여 엔진). Google 은 sitemap + Search Console.
 - `public/llms.txt`: 페이지 패턴·데이터·갱신 주기(생성형 검색 인용용).
 

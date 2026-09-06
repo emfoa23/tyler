@@ -6,7 +6,12 @@
 import { SIDO } from "./dhlottery.mjs";
 
 export const CORE_INDEX_PATHS = ["/", "/history", "/stores", "/numbers", "/numbers/missing"];
-export const FEED_PATHS = ["/sitemap.xml", "/rss.xml"];
+// 사이트맵 인덱스·하위 파일·RSS — 회차/지점이 바뀌면 변경일이 바뀌므로 함께 지운다(app/sitemap.xml, app/sitemaps/[name], app/rss.xml).
+// stores-N 은 lib/sitemap MAX_STORE_SITEMAPS(4)까지 — 없는 파일 경로를 지우는 건 무해하다.
+export const FEED_PATHS = [
+  "/sitemap.xml", "/rss.xml", "/sitemaps/core.xml", "/sitemaps/history.xml",
+  "/sitemaps/stores-1.xml", "/sitemaps/stores-2.xml", "/sitemaps/stores-3.xml", "/sitemaps/stores-4.xml",
+];
 export const sidoPaths = () => SIDO.map((s) => `/stores?sido=${encodeURIComponent(s)}`);
 export const roundPath = (n) => `/history/${n}`;
 export const storePath = (id) => `/stores/${id}`;

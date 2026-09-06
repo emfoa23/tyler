@@ -223,6 +223,8 @@ export function mapMasterStore(m, seenAtIso) {
     status: m.slrOperSttsCd === "1" ? "open" : "closed",
     sells_l645: m.l645LtNtslYn === "Y",
     master_seen_at: seenAtIso,
-    updated_at: seenAtIso,
+    // updated_at 은 여기서 올리지 않는다 — 매주 전 지점을 upsert 하므로 매번 올리면 "내용이 바뀐 시각"이 아니라
+    // "마지막 동기화 시각"이 돼 사이트맵 변경일이 매주 전 지점에서 새로워진다(2026-09-06 실측). 상호·주소·상태가
+    // 실제로 바뀐 지점만 master.mjs 가 따로 올린다.
   };
 }

@@ -32,6 +32,8 @@ create table stores (
   sells_l645 boolean,
   master_seen_at timestamptz,
   created_at timestamptz not null default now(),
+  -- 내용(상호·주소·시도·시군구·상태)이 바뀐 시각 — 사이트맵 지점 변경일의 재료. 매주 마스터 upsert 에서 무조건 올리지 않고
+  -- sync-stores 가 실제 변경 지점만 올린다(2026-09-06). 마지막 동기화 시각은 master_seen_at.
   updated_at timestamptz not null default now()
 );
 create index stores_sido_idx on stores (sido);
@@ -759,3 +761,19 @@ from (select client_id, min((created_at at time zone 'Asia/Seoul')::date) as fir
       from generated_sets group by client_id) f
 where f.client_id = d.client_id
   and (f.first_day < d.first_seen_day or d.first_gen_day is null or f.first_day < d.first_gen_day);
+
+-- 사이트맵용: 배출 이력이 있는 지점만(내용이 있는 페이지). lastmod = 마지막 배출일과, 생성 이후 실제 내용 변경이
+-- 있었을 때의 updated_at 중 늦은 쪽(처음 적재 시각은 변경이 아니므로 제외). json 한 덩어리로 돌려 PostgREST 의
+-- 1,000행 한도를 우회한다(1만 행 안팎). 2026-09-06.
+create or replace function sitemap_store_entries()
+returns json language sql stable as $$
+  select coalesce(json_agg(json_build_object('id', t.store_id, 'lastmod', t.lastmod) order by t.store_id), '[]'::json)
+  from (
+    select w.store_id,
+           greatest(max(w.draw_date), max(case when s.updated_at > s.created_at + interval '1 minute' then s.updated_at::date end)) as lastmod
+    from store_wins w join stores s on s.store_id = w.store_id
+    group by w.store_id
+  ) t
+$$;
+revoke execute on function sitemap_store_entries() from public, anon, authenticated;
+grant execute on function sitemap_store_entries() to service_role;
