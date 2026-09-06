@@ -7,7 +7,8 @@ import { dateShort } from "@/lib/format";
 import { NUMBERS_TABS, withCompetitionRank } from "@/lib/lotto";
 import { getLatestDraw, getNumberFrequency } from "@/lib/queries";
 
-export const revalidate = 3600;
+// 검색 파라미터(searchParams)를 읽어 Next 가 요청마다 렌더하는 화면 — 페이지 캐시 대신 조회 결과를
+// 태그 데이터 캐시(lib/queries, lib/cache-policy)에 7일 보관하고 동기화가 태그로 지운다.
 
 export const metadata: Metadata = pageMeta({
   core: "로또 자주 나오는 번호",

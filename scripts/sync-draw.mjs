@@ -10,7 +10,9 @@ import {
 import { countRows, del, insert, patch, rpc, select, upsert } from "./lib/supa.mjs";
 import { uniqueBy } from "./lib/util.mjs";
 import { pingIndexNow } from "./lib/indexnow.mjs";
-import { log, warn } from "./lib/log.mjs";
+import { log } from "./lib/log.mjs";
+import { revalidate } from "./lib/ops.mjs";
+import { addCore, addRound, addStores, isEmpty, newChangeSet, summary } from "./lib/changes.mjs";
 import { needsLateFields, publishedMore } from "../lib/draw-state.mjs";
 import { drawMoment } from "../lib/draw-time.mjs";
 
@@ -29,6 +31,8 @@ if (!head) {
   process.exit(1);
 }
 let changed = false;
+// 이번 실행에서 바뀐 URL 집합 — 무효화와 IndexNow 가 같은 목록을 쓴다(scripts/lib/changes.mjs).
+const cs = newChangeSet();
 log(`start: now=${now.toISOString()} head=${head.draw_no} expected=${expectedLatestDraw(now)}`);
 
 // 1) 당첨결과 — 호출 1회. 날짜로 계산한 기대 회차를 요청하면 응답 창(요청 회차부터 아래로 10개)에
@@ -44,6 +48,9 @@ for (const item of fresh) {
   await upsert("draws", [row], "draw_no");
   log(`draw ${row.draw_no}: results upserted${needsLateFields(row) ? " (late fields pending)" : ""}`);
   changed = true;
+  addCore(cs, ["draws", "numbers"]);
+  addRound(cs, row.draw_no);
+  addRound(cs, row.draw_no - 1); // 직전 회차 페이지의 "다음 회차 →" 링크가 생긴다
 }
 // 지연 필드 — 당첨금·판매액은 추첨 후 ~20:49, 1등 구매유형은 ~21:00 에야 공개되고 공개 전엔 0 으로 온다.
 // 신규가 없을 때 DB 최신 회차에 미공개 묶음이 남았으면 같은 응답에서 재보정한다(판정: lib/draw-state).
@@ -54,6 +61,8 @@ if (!fresh.length && needsLateFields(head)) {
     await upsert("draws", [row], "draw_no");
     log(`draw ${head.draw_no}: late fields refreshed${needsLateFields(row) ? " (some still pending)" : ""}`);
     changed = true;
+    addCore(cs, ["draws"]);
+    addRound(cs, head.draw_no);
   } else {
     log(`draw ${head.draw_no}: late fields not published yet`);
   }
@@ -91,11 +100,16 @@ for (const d of targets) {
   const dbCount = d.draw_no === latest.draw_no ? latestCount : await countRows(`store_wins?draw_no=eq.${d.draw_no}`);
   if (dbCount !== total) {
     const stores = uniqueBy(wins.list.map(mapWinStore), "store_id");
+    // 정정으로 빠지는 지점의 페이지도 바뀌므로 교체 전 목록까지 합쳐서 지운다
+    const before = dbCount ? (await select(`store_wins?draw_no=eq.${d.draw_no}&select=store_id`)).map((r) => r.store_id) : [];
     await upsert("stores", stores, "store_id", { ignore: true });
     await del(`store_wins?draw_no=eq.${d.draw_no}`);
     await insert("store_wins", wins.list.map((w) => mapWinRow(w, d)));
     log(`draw ${d.draw_no}: ${total} winning-store rows stored (was ${dbCount})`);
     changed = true;
+    addCore(cs, ["ranking"]);
+    addRound(cs, d.draw_no);
+    addStores(cs, new Set([...stores.map((x) => x.store_id), ...before]));
   } else {
     log(`draw ${d.draw_no}: winning stores unchanged (${total})`);
   }
@@ -114,34 +128,30 @@ let completedNow = false;
       log(`draw ${cur.draw_no}: completed (results + stores)`);
       changed = true;
       completedNow = true;
+      addCore(cs, ["draws"]); // 사이트맵·RSS 의 최신 회차 변경일이 완성 시각으로 바뀐다
+      addRound(cs, cur.draw_no);
     }
   }
 }
 
-// 5) 변경이 있었으면 사이트 ISR revalidate
-const site = process.env.SITE_URL;
-const secret = process.env.OPS_SECRET;
-if (changed && site && secret) {
-  try {
-    const res = await fetch(`${site}/api/ops/revalidate`, {
-      method: "POST",
-      headers: { "x-cron-secret": secret },
-    });
-    log(`revalidate: ${res.status}`);
-  } catch (e) {
-    warn(`revalidate failed (non-fatal): ${e}`);
-  }
+// 5) 바뀐 것만 지운다 — 페이지 경로(홈·회차·지점·사이트맵·RSS)와 데이터 캐시 태그(목록·순위·통계).
+if (changed && !isEmpty(cs)) {
+  log(`changes: ${summary(cs)}${completedNow ? " (round completed this run)" : ""}`);
+  await revalidate(cs);
 }
 
-// 6) 변경이 있었으면 IndexNow 핑 — 새 회차 페이지가 검색엔진에 빨리 잡히게 (비치명, 실패해도 성공 종료)
-if (changed) {
-  const latestNo = head.draw_no;
-  const paths = ["/", "/history", "/stores", "/numbers", "/numbers/missing", `/history/${latestNo}`];
-  try {
-    log(`indexnow: ${await pingIndexNow(paths)} (${paths.length} urls)`);
-  } catch (e) {
-    warn(`indexnow failed (non-fatal): ${e}`);
-  }
+// 6) IndexNow — 같은 목록을 참여 엔진(네이버·Bing)에 알린다. 변경이 있던 실행마다 바로 보내고(빠른 발견),
+//    재대조 실행(일 10:00)에서는 변경이 없어도 그 주 회차·배출 지점을 한 번 더 보낸다(짧은 시간 안의 반복 알림을
+//    엔진이 하나로 묶었을 경우의 안전장치). 실패해도 성공 종료.
+if (changed && cs.urls.size) {
+  await pingIndexNow([...cs.urls]);
+} else if (reconcile) {
+  const resend = newChangeSet();
+  addCore(resend, []);
+  addRound(resend, latest.draw_no);
+  addStores(resend, (await select(`store_wins?draw_no=eq.${latest.draw_no}&select=store_id`)).map((r) => r.store_id));
+  log(`indexnow resend (reconcile): ${resend.urls.size} urls for draw ${latest.draw_no}`);
+  await pingIndexNow([...resend.urls]);
 }
 
 log(changed ? "sync-draw: done (changes applied)" : "sync-draw: done (no changes)");

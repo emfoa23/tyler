@@ -7,7 +7,8 @@ import { SIDO_LIST, isOnlineStore, storeDisplayName } from "@/lib/lotto";
 import { RANKING_PER_PAGE, getLatestDraw, getRanking } from "@/lib/queries";
 import { pageMeta } from "@/lib/seo";
 
-export const revalidate = 3600;
+// 검색 파라미터(searchParams)를 읽어 Next 가 요청마다 렌더하는 화면 — 페이지 캐시 대신 조회 결과를
+// 태그 데이터 캐시(lib/queries, lib/cache-policy)에 7일 보관하고 동기화가 태그로 지운다.
 
 type Params = { rank?: string; months?: string; years?: string; sido?: string; page?: string };
 

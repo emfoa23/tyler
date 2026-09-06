@@ -8,7 +8,8 @@ import { drawNumbers, isOnlineStore, rankByMissed, storeDisplayName } from "@/li
 import { isPrizePublished } from "@/lib/draw-state.mjs";
 import { getDraws, getLatestDraw, getNumberFrequency, getRanking } from "@/lib/queries";
 
-export const revalidate = 3600;
+// 7일 — 바뀐 것만 정확히 지우는 동기화가 있으므로 TTL 은 안전망(lib/cache-policy CACHE_TTL_SECONDS 와 동일)
+export const revalidate = 604800;
 
 // 레이아웃의 상대 canonical("./") 이 홈에서만 "/index" 로 풀리는 Next 동작이 있어 명시로 고정
 export const metadata: Metadata = pageMeta({ absoluteTitle: HOME_TITLE, description: HOME_DESCRIPTION, path: "/" });
