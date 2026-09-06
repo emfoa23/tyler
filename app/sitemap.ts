@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { SIDO_LIST, drawDateFor } from "@/lib/lotto";
 import { getLatestDraw } from "@/lib/queries";
 
-export const revalidate = 86400;
+export const revalidate = 604800; // 7일 — 동기화가 /sitemap.xml 을 지운다(lib/cache-policy)
 
 // 지점 페이지(수만 개)는 의도적으로 제외 — per-id 페이지를 사이트맵에 다 실으면
 // 크롤러가 ISR 재생성을 폭증시킨다 (boss-paegi 에서 실측된 함정). 순위 페이지 링크로 발견되게 둔다.

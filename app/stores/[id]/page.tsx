@@ -10,7 +10,8 @@ import { isOnlineStore, methodLabel, methodSummary, storeDisplayName } from "@/l
 import { getStore, getStoreWins, type StoreWinRow } from "@/lib/queries";
 import { pageMeta, storeTitleCore } from "@/lib/seo";
 
-export const revalidate = 3600;
+// 7일 — 바뀐 것만 정확히 지우는 동기화가 있으므로 TTL 은 안전망(lib/cache-policy CACHE_TTL_SECONDS 와 동일)
+export const revalidate = 604800;
 
 export async function generateStaticParams() {
   return [];

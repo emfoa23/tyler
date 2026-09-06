@@ -1,0 +1,40 @@
+// 한 실행에서 "바뀐 URL 집합" — 무효화(/api/ops/revalidate)와 IndexNow 가 같은 목록을 쓴다(2026-09-06).
+//   paths: 페이지 캐시를 지울 경로(홈·회차 상세·지점 상세·사이트맵·RSS). 검색 파라미터 화면은 페이지 캐시가
+//          없어 경로 대신 tags 로 데이터 캐시를 지운다.
+//   tags : draws(최신 회차·목록) · ranking(명당 순위) · numbers(번호 통계) — lib/cache-policy 와 동일.
+//   urls : IndexNow 로 알릴 경로(색인 대상만: 핵심 5 + 시도 17 + 회차 + 지점).
+import { SIDO } from "./dhlottery.mjs";
+
+export const CORE_INDEX_PATHS = ["/", "/history", "/stores", "/numbers", "/numbers/missing"];
+export const FEED_PATHS = ["/sitemap.xml", "/rss.xml"];
+export const sidoPaths = () => SIDO.map((s) => `/stores?sido=${encodeURIComponent(s)}`);
+export const roundPath = (n) => `/history/${n}`;
+export const storePath = (id) => `/stores/${id}`;
+
+export function newChangeSet() {
+  return { paths: new Set(), tags: new Set(), urls: new Set() };
+}
+
+/** 회차 이벤트 공통: 홈·피드 페이지 캐시 + 핵심·시도 URL 알림. tags 는 호출자가 고른다. */
+export function addCore(cs, tags = []) {
+  cs.paths.add("/");
+  for (const p of FEED_PATHS) cs.paths.add(p);
+  for (const p of [...CORE_INDEX_PATHS, ...sidoPaths()]) cs.urls.add(p);
+  for (const t of tags) cs.tags.add(t);
+}
+
+export function addRound(cs, drawNo) {
+  cs.paths.add(roundPath(drawNo));
+  cs.urls.add(roundPath(drawNo));
+}
+
+export function addStores(cs, storeIds) {
+  for (const id of storeIds) {
+    cs.paths.add(storePath(id));
+    cs.urls.add(storePath(id));
+  }
+}
+
+export const isEmpty = (cs) => cs.paths.size === 0 && cs.tags.size === 0 && cs.urls.size === 0;
+
+export const summary = (cs) => `${cs.paths.size} paths, ${cs.tags.size} tags, ${cs.urls.size} urls`;

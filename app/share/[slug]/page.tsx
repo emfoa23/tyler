@@ -10,7 +10,8 @@ import { getDraw, getWinningSets } from "@/lib/queries";
 import { pageMeta } from "@/lib/seo";
 import type { Draw } from "@/lib/types";
 
-export const revalidate = 3600;
+// 7일 — 바뀐 것만 정확히 지우는 동기화가 있으므로 TTL 은 안전망(lib/cache-policy CACHE_TTL_SECONDS 와 동일)
+export const revalidate = 604800;
 
 // 자랑하기 공유 착지 — 토큰(32hex)이 "그 기기의 해당 회차 당첨 내역" 개인화 페이지를 가리킨다
 // (사용자 확정: 회차로 퉁치지 않는다 — 뭐로 어떻게 당첨됐는지가 본문. 회차 일반 착지는 제거).
