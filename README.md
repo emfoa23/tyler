@@ -134,6 +134,7 @@ npm run dev        # .env.local 필요: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 node scripts/backfill.mjs all      # 전체 백필 — Actions 의 backfill 워크플로로도 dispatch 가능
 node scripts/sync-draw.mjs         # 주간 동기화 (Actions 가 실행하는 것과 동일)
 node scripts/sync-stores.mjs "서울,경기"   # 마스터 동기화(질의 부분집합, 비우면 전국) — Actions 는 질의별 matrix 잡, 입력 queries=["서울","경기"]
+node scripts/indexnow-bulk.mjs [--dry]  # 1회성: 사이트맵의 URL 전부를 IndexNow 로 알림(네이버·Bing). 주간 변경분은 동기화가 보낸다
 ```
 
 배포는 **Vercel GitHub 연동**(2026-08-23 연결, production branch `main`) — PR 머지(= main push)마다 자동 프로덕션 배포,
