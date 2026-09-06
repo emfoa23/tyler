@@ -58,6 +58,10 @@ const agent = new https.Agent({ keepAlive: true, maxSockets: 1, timeout: IDLE_MS
 
 function httpGetText(url) {
   return new Promise((resolve, reject) => {
+    // 소켓 timeout 과 별개의 하드 데드라인 — 재사용 소켓에서 소켓 timeout 이 안 걸린 채 커널 재전송 한도(~2분)까지
+    // 매달리는 케이스가 실측됐다(2026-09-06 세종 로컬 런: read ECONNRESET 113s). 어떤 경우에도 한 시도가
+    // TIMEOUT_MS + 5s 를 넘기지 않게 한다.
+    const deadline = setTimeout(() => req.destroy(new Error(`request deadline (${TIMEOUT_MS + 5000}ms)`)), TIMEOUT_MS + 5000);
     // timeout 옵션은 소켓 생성 시점에 걸려 TCP 연결 단계(SYN 무응답)까지 덮는다. req.setTimeout 만으로는
     // 연결이 된 뒤에야 적용돼, 스로틀이 SYN 을 버리면 OS connect 한도(~130초)까지 매달렸다
     // (2026-09-05 세종 런 실측: connect ETIMEDOUT 136s ×2).
@@ -70,11 +74,20 @@ function httpGetText(url) {
       }
       const chunks = [];
       res.on("data", (c) => chunks.push(c));
-      res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-      res.on("error", reject);
+      res.on("end", () => {
+        clearTimeout(deadline);
+        resolve(Buffer.concat(chunks).toString("utf8"));
+      });
+      res.on("error", (e) => {
+        clearTimeout(deadline);
+        reject(e);
+      });
     });
     req.on("timeout", () => req.destroy(new Error(`request timeout (${TIMEOUT_MS}ms)`)));
-    req.on("error", reject);
+    req.on("error", (e) => {
+      clearTimeout(deadline);
+      reject(e);
+    });
   });
 }
 

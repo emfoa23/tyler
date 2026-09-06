@@ -34,6 +34,7 @@ cron-job.org (유일한 스케줄러)
   │    → 배출점(최신 회차 미적재 시 1회, 추첨 후 12시간 지난 실행은 최근 3회차 재대조) → ISR revalidate → IndexNow 핑
   ├─ sync-stores  일요일 새벽 주 1회 — 전국 판매점 마스터 upsert + 미출현 지점 closed 마킹
   │    질의(시도)마다 별도 잡·별도 러너 IP(matrix, 동시 2) — 한 러너 순차 긁기는 IP 스로틀로 timeout
+  │    갱신 전후 비교로 상호·주소·상태가 바뀐 지점·새 지점·폐점 지점만 골라 지점·회차 페이지 무효화 + IndexNow
   └─ keepalive    매일 — GET /api/ops/keepalive (Supabase 무료 pause 방지)
 ```
 
