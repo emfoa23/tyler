@@ -13,7 +13,10 @@ create table draws (
   first_auto integer, first_manual integer, first_semi integer,
   sales_total bigint,
   prize_pool bigint,
-  synced_at timestamptz not null default now()
+  synced_at timestamptz not null default now(),
+  -- 당첨금 묶음·판매액·구매유형·배출점이 모두 채워져 회차 페이지가 완성된 시각(sync-draw 가 첫 완성 실행에서 기록).
+  -- RSS 항목 날짜·사이트맵 최신 회차 변경일의 정본. 2026-09-06 이전 회차는 추첨일 21:05 KST 근사값으로 백필.
+  completed_at timestamptz
 );
 
 create table stores (
@@ -71,7 +74,8 @@ create or replace function store_ranking(
   p_months integer default null,
   p_sido text default null,
   p_limit integer default 100,
-  p_offset integer default 0
+  p_offset integer default 0,
+  p_anchor date default current_date
 ) returns table (
   store_id text, name text, sido text, sigungu text, address text, status text,
   r1 bigint, r2 bigint, total bigint, last_win date, rnk bigint
@@ -84,8 +88,10 @@ create or replace function store_ranking(
            max(w.draw_date) as last_win
     from store_wins w
     join stores s on s.store_id = w.store_id
+    -- 기간 창은 오늘이 아니라 기준일(p_anchor = 앱이 넘기는 최신 추첨일)에서 자른다 — 결과가 날짜가 아니라
+    -- 회차 이벤트 때만 바뀌어 페이지를 7일 캐시할 수 있다(2026-09-06).
     where (p_rank = 'all' or w.rank = p_rank::smallint)
-      and (p_months is null or w.draw_date >= (current_date - make_interval(months => p_months)))
+      and (p_months is null or w.draw_date >= (p_anchor - make_interval(months => p_months)))
       -- 온라인 채널(51100000)은 특정 시도 소속이 아니므로 지역 필터에선 제외, 전국일 때만 포함
       and (p_sido is null or (s.sido = p_sido and s.store_id <> '51100000'))
     group by s.store_id
@@ -150,17 +156,18 @@ begin
   return v_count;
 end $$;
 
-revoke execute on function store_ranking(text, integer, text, integer, integer) from public, anon, authenticated;
+revoke execute on function store_ranking(text, integer, text, integer, integer, date) from public, anon, authenticated;
 revoke execute on function generation_stats() from public, anon, authenticated;
 revoke execute on function check_generated_sets(integer) from public, anon, authenticated;
-grant execute on function store_ranking(text, integer, text, integer, integer) to service_role;
+grant execute on function store_ranking(text, integer, text, integer, integer, date) to service_role;
 grant execute on function generation_stats() to service_role;
 grant execute on function check_generated_sets(integer) to service_role;
 
 -- 번호별 출현 통계. p_bonus 는 시그니처 변경 마이그레이션을 피하려고 처음부터 포함(2026-08-20).
 create or replace function number_frequency(
   p_months integer default null,
-  p_bonus boolean default false
+  p_bonus boolean default false,
+  p_anchor date default current_date
 ) returns table (num smallint, cnt bigint, last_draw integer, last_date date)
 language sql stable as $$
   with pool as (
@@ -172,7 +179,8 @@ language sql stable as $$
         else array[d.n1, d.n2, d.n3, d.n4, d.n5, d.n6]
       end
     ) as x(num)
-    where p_months is null or d.draw_date >= (current_date - make_interval(months => p_months))
+    -- 기간 창은 기준일(p_anchor = 최신 추첨일)에서 자른다 — store_ranking 과 같은 이유(2026-09-06).
+    where p_months is null or d.draw_date >= (p_anchor - make_interval(months => p_months))
   )
   select n.num::smallint,
          count(p.num) as cnt,
@@ -184,8 +192,8 @@ language sql stable as $$
   order by count(p.num) desc, n.num asc
 $$;
 
-revoke execute on function number_frequency(integer, boolean) from public, anon, authenticated;
-grant execute on function number_frequency(integer, boolean) to service_role;
+revoke execute on function number_frequency(integer, boolean, date) from public, anon, authenticated;
+grant execute on function number_frequency(integer, boolean, date) to service_role;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 분석·어드민 (2026-08-29) — boss-paegi v1.06 하이브리드 규약의 축소 이식.

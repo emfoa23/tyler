@@ -5,7 +5,7 @@ import { NumbersFilter } from "@/components/numbers-filter";
 import { SectionTabs } from "@/components/section-tabs";
 import { dateShort } from "@/lib/format";
 import { NUMBERS_TABS, withCompetitionRank } from "@/lib/lotto";
-import { getNumberFrequency } from "@/lib/queries";
+import { getLatestDraw, getNumberFrequency } from "@/lib/queries";
 
 export const revalidate = 3600;
 
@@ -26,7 +26,9 @@ export default async function NumbersPage({
   const months = ["6", "12", "60"].includes(params.months ?? "") ? Number(params.months) : null;
   const bonus = params.bonus === "1";
 
-  const rows = await getNumberFrequency({ months, bonus });
+  // 기간 창의 기준일 = 최신 추첨일 (명당 순위와 같은 규칙)
+  const latest = await getLatestDraw();
+  const rows = await getNumberFrequency({ months, bonus, anchor: latest?.draw_date ?? null });
   const maxCnt = rows[0]?.cnt || 1;
 
   return (
