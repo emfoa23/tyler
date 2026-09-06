@@ -63,12 +63,15 @@ export async function getDrawWins(drawNo: number): Promise<DrawWin[]> {
   return (data ?? []) as unknown as DrawWin[];
 }
 
+// 기간 창(months)의 기준일은 오늘이 아니라 최신 추첨일(anchor) — 결과가 날짜가 아니라 회차 이벤트 때만
+// 바뀌어 캐시를 길게 둘 수 있다(2026-09-06 사용자 확정). months 가 없으면 기준일은 무의미.
 export async function getRanking(params: {
   rank?: "all" | "1" | "2";
   months?: number | null;
   sido?: string | null;
   limit?: number;
   offset?: number;
+  anchor?: string | null; // YYYY-MM-DD, 최신 추첨일
 }): Promise<RankingRow[]> {
   const { data, error } = await db.rpc("store_ranking", {
     p_rank: params.rank ?? "all",
@@ -76,6 +79,7 @@ export async function getRanking(params: {
     p_sido: params.sido ?? null,
     p_limit: params.limit ?? RANKING_PER_PAGE,
     p_offset: params.offset ?? 0,
+    ...(params.months && params.anchor ? { p_anchor: params.anchor } : {}),
   });
   if (error) throw error;
   return (data ?? []) as RankingRow[];
@@ -93,10 +97,12 @@ export async function getNumberFrequency(params: {
   months?: number | null;
   bonus?: boolean;
   limit?: number;
+  anchor?: string | null; // YYYY-MM-DD, 최신 추첨일 (getRanking 과 같은 규칙)
 }): Promise<NumberFrequencyRow[]> {
   const { data, error } = await db.rpc("number_frequency", {
     p_months: params.months ?? null,
     p_bonus: params.bonus ?? false,
+    ...(params.months && params.anchor ? { p_anchor: params.anchor } : {}),
   });
   if (error) throw error;
   const rows = (data ?? []) as NumberFrequencyRow[];

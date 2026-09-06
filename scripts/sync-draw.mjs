@@ -7,7 +7,7 @@
 import {
   expectedLatestDraw, fetchDrawWindow, fetchWins, mapDraw, mapWinRow, mapWinStore,
 } from "./lib/dhlottery.mjs";
-import { countRows, del, insert, rpc, select, upsert } from "./lib/supa.mjs";
+import { countRows, del, insert, patch, rpc, select, upsert } from "./lib/supa.mjs";
 import { uniqueBy } from "./lib/util.mjs";
 import { pingIndexNow } from "./lib/indexnow.mjs";
 import { log, warn } from "./lib/log.mjs";
@@ -19,7 +19,7 @@ const now = process.env.SYNC_NOW ? new Date(process.env.SYNC_NOW) : new Date();
 // 추첨 후 이 시간이 지난 실행(일 10:00 슬롯)에서만 최근 3회차 배출점을 재대조한다.
 const RECONCILE_AFTER_MS = 12 * 3600_000;
 
-const HEAD_COLUMNS = "draw_no,draw_date,r1_winners,r5_winners,sales_total,first_auto,first_manual,first_semi";
+const HEAD_COLUMNS = "draw_no,draw_date,r1_winners,r5_winners,sales_total,first_auto,first_manual,first_semi,completed_at";
 const readHead = async () =>
   (await select(`draws?select=${HEAD_COLUMNS}&order=draw_no.desc&limit=1`))[0];
 
@@ -101,7 +101,24 @@ for (const d of targets) {
   }
 }
 
-// 4) 변경이 있었으면 사이트 ISR revalidate
+// 4) 회차 완성 시각 — 당첨금 묶음·판매액·구매유형·배출점이 모두 채워진 첫 실행에서 기록한다.
+//    RSS 항목 날짜와 사이트맵 최신 회차 변경일의 정본(값이 있으면 다시 쓰지 않는다). 번호만 있는 20:45 상태나
+//    배출점이 없는 상태에선 기록되지 않으므로 "완성된 문서"만 새 문서로 알릴 수 있다.
+let completedNow = false;
+{
+  const cur = await readHead();
+  if (cur && !cur.completed_at && !needsLateFields(cur)) {
+    const stored = await countRows(`store_wins?draw_no=eq.${cur.draw_no}`);
+    if (stored && stored > 0) {
+      await patch(`draws?draw_no=eq.${cur.draw_no}`, { completed_at: new Date().toISOString() });
+      log(`draw ${cur.draw_no}: completed (results + stores)`);
+      changed = true;
+      completedNow = true;
+    }
+  }
+}
+
+// 5) 변경이 있었으면 사이트 ISR revalidate
 const site = process.env.SITE_URL;
 const secret = process.env.OPS_SECRET;
 if (changed && site && secret) {
@@ -116,7 +133,7 @@ if (changed && site && secret) {
   }
 }
 
-// 5) 변경이 있었으면 IndexNow 핑 — 새 회차 페이지가 검색엔진에 빨리 잡히게 (비치명, 실패해도 성공 종료)
+// 6) 변경이 있었으면 IndexNow 핑 — 새 회차 페이지가 검색엔진에 빨리 잡히게 (비치명, 실패해도 성공 종료)
 if (changed) {
   const latestNo = head.draw_no;
   const paths = ["/", "/history", "/stores", "/numbers", "/numbers/missing", `/history/${latestNo}`];

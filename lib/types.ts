@@ -11,6 +11,7 @@ export type Draw = {
   first_auto: number | null; first_manual: number | null; first_semi: number | null;
   sales_total: number | null;
   prize_pool: number | null;
+  completed_at: string | null; // 당첨금·판매액·구매유형·배출점이 모두 채워진 시각(sync-draw 기록). RSS 날짜·사이트맵 변경일 정본
 };
 
 export type DrawNumbers = Pick<Draw, "draw_no" | "draw_date" | "n1" | "n2" | "n3" | "n4" | "n5" | "n6" | "bonus">;

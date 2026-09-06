@@ -4,7 +4,7 @@ import { StoreBadges } from "@/components/store-badge";
 import { StoresFilter } from "@/components/stores-filter";
 import { dateShort } from "@/lib/format";
 import { SIDO_LIST, isOnlineStore, storeDisplayName } from "@/lib/lotto";
-import { RANKING_PER_PAGE, getRanking } from "@/lib/queries";
+import { RANKING_PER_PAGE, getLatestDraw, getRanking } from "@/lib/queries";
 import { pageMeta } from "@/lib/seo";
 
 export const revalidate = 3600;
@@ -63,12 +63,15 @@ export default async function StoresPage({
     sido: sido ?? undefined,
   };
 
+  // 기간 창의 기준일 = 최신 추첨일 (오늘 기준이면 날짜가 지날 때마다 결과가 흔들려 캐시할 수 없다)
+  const latest = await getLatestDraw();
   const rows = await getRanking({
     rank,
     months,
     sido,
     limit: RANKING_PER_PAGE + 1,
     offset,
+    anchor: latest?.draw_date ?? null,
   });
   const hasMore = rows.length > RANKING_PER_PAGE;
   const visible = rows.slice(0, RANKING_PER_PAGE);
