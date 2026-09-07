@@ -68,16 +68,24 @@ alter table stores enable row level security;
 alter table store_wins enable row level security;
 alter table generated_sets enable row level security;
 
--- 기간 필터는 월 단위(p_months: 6·12·60). 파라미터명·반환 컬럼 변경은 CREATE OR REPLACE 불가라
--- 재배포 시 DROP 후 재생성 + GRANT 재적용이 필요하다 (2026-08-20 p_years→p_months 전환,
--- 2026-09-05 rnk 추가 — begin/commit 으로 묶으면 함수가 비는 순간 없이 교체된다).
-create or replace function store_ranking(
+-- 기간 필터는 회차 창 하나(p_draws: 최근 N회, null = 전체 — 프리셋 10·30·50회와 직접 입력 모두 회차 수 그대로,
+-- 달력 단위는 두지 않는다. 2026-09-07 — p_months/p_anchor 폐기). 회차는 1회부터 결번 없이 매주 이어져
+-- draw_no 뺄셈이 정확하고, 그래서 최신 추첨일 앵커가 필요 없다.
+-- 파라미터명·반환 컬럼 변경은 CREATE OR REPLACE 불가라 DROP 후 재생성 + GRANT 재적용이 필요하다(begin/commit 으로
+-- 묶으면 함수가 비는 순간 없이 교체). 무중단 순서: ①과도기 정의(p_months·p_anchor 를 남긴 채 p_draws 를 덧붙인
+-- 형태)를 프로드에 적용 → ②앱 배포(p_draws 만 호출) → ③이 최종 정의로 교체. 아래 drop 은 어느 상태에서든 멱등.
+drop function if exists store_ranking(text, integer, text, integer, integer, date);
+drop function if exists store_ranking(text, integer, text, integer, integer, date, integer);
+drop function if exists store_ranking(text, integer, text, integer, integer, date, integer, boolean);
+drop function if exists store_ranking(text, integer, text, integer, integer);
+drop function if exists store_ranking(text, integer, text, boolean, integer, integer);
+create function store_ranking(
   p_rank text default 'all',
-  p_months integer default null,
+  p_draws integer default null,
   p_sido text default null,
+  p_open boolean default false,
   p_limit integer default 100,
-  p_offset integer default 0,
-  p_anchor date default current_date
+  p_offset integer default 0
 ) returns table (
   store_id text, name text, sido text, sigungu text, address text, status text,
   r1 bigint, r2 bigint, total bigint, last_win date, rnk bigint
@@ -90,12 +98,13 @@ create or replace function store_ranking(
            max(w.draw_date) as last_win
     from store_wins w
     join stores s on s.store_id = w.store_id
-    -- 기간 창은 오늘이 아니라 기준일(p_anchor = 앱이 넘기는 최신 추첨일)에서 자른다 — 결과가 날짜가 아니라
-    -- 회차 이벤트 때만 바뀌어 페이지를 7일 캐시할 수 있다(2026-09-06).
     where (p_rank = 'all' or w.rank = p_rank::smallint)
-      and (p_months is null or w.draw_date >= (p_anchor - make_interval(months => p_months)))
+      -- 최근 N회 = 최신 회차에서 거슬러 N개 (draw_no 연속 전제)
+      and (p_draws is null or w.draw_no > (select max(draw_no) from draws) - p_draws)
       -- 온라인 채널(51100000)은 특정 시도 소속이 아니므로 지역 필터에선 제외, 전국일 때만 포함
       and (p_sido is null or (s.sido = p_sido and s.store_id <> '51100000'))
+      -- 폐점 제외(p_open): 마스터에서 사라져 closed 로 마킹된 지점을 뺀다 — 순위는 남은 집합 안에서 다시 매겨진다(2026-09-07)
+      and (not p_open or s.status = 'open')
     group by s.store_id
   )
   select store_id, name, sido, sigungu, address, status, r1, r2, total, last_win,
@@ -158,31 +167,38 @@ begin
   return v_count;
 end $$;
 
-revoke execute on function store_ranking(text, integer, text, integer, integer, date) from public, anon, authenticated;
+revoke execute on function store_ranking(text, integer, text, boolean, integer, integer) from public, anon, authenticated;
 revoke execute on function generation_stats() from public, anon, authenticated;
 revoke execute on function check_generated_sets(integer) from public, anon, authenticated;
-grant execute on function store_ranking(text, integer, text, integer, integer, date) to service_role;
+grant execute on function store_ranking(text, integer, text, boolean, integer, integer) to service_role;
 grant execute on function generation_stats() to service_role;
 grant execute on function check_generated_sets(integer) to service_role;
 
--- 번호별 출현 통계. p_bonus 는 시그니처 변경 마이그레이션을 피하려고 처음부터 포함(2026-08-20).
-create or replace function number_frequency(
-  p_months integer default null,
+-- 번호별 출현 통계. 기간은 store_ranking 과 같은 회차 창(p_draws). p_with 는 조건 번호(같이 나온 번호, 2026-09-07):
+-- 그 번호를 모두 포함한 회차만 세므로 조건 번호 자신의 행 값이 곧 "함께 나온 회차 수"이고, 비어 있으면 자주 나오는
+-- 번호와 같다(함수 하나가 한 개념). 보너스 포함이면 7개 안에서 판정한다. 같이 나온 번호는 p_draws 없이(전 기간) 부른다.
+-- 무중단 교체 순서는 store_ranking 과 동일.
+drop function if exists number_frequency(integer, boolean, date);
+drop function if exists number_frequency(integer, boolean, date, integer, smallint[]);
+drop function if exists number_frequency(integer, boolean, smallint[]);
+create function number_frequency(
+  p_draws integer default null,
   p_bonus boolean default false,
-  p_anchor date default current_date
+  p_with smallint[] default '{}'
 ) returns table (num smallint, cnt bigint, last_draw integer, last_date date)
 language sql stable as $$
   with pool as (
     select d.draw_no, d.draw_date, x.num
     from draws d
-    cross join lateral unnest(
-      case when p_bonus
+    cross join lateral (
+      select case when p_bonus
         then array[d.n1, d.n2, d.n3, d.n4, d.n5, d.n6, d.bonus]
         else array[d.n1, d.n2, d.n3, d.n4, d.n5, d.n6]
-      end
-    ) as x(num)
-    -- 기간 창은 기준일(p_anchor = 최신 추첨일)에서 자른다 — store_ranking 과 같은 이유(2026-09-06).
-    where p_months is null or d.draw_date >= (p_anchor - make_interval(months => p_months))
+      end as nums
+    ) a
+    cross join lateral unnest(a.nums) as x(num)
+    where (p_draws is null or d.draw_no > (select max(draw_no) from draws) - p_draws)
+      and a.nums @> p_with
   )
   select n.num::smallint,
          count(p.num) as cnt,
@@ -194,8 +210,57 @@ language sql stable as $$
   order by count(p.num) desc, n.num asc
 $$;
 
-revoke execute on function number_frequency(integer, boolean, date) from public, anon, authenticated;
-grant execute on function number_frequency(integer, boolean, date) to service_role;
+revoke execute on function number_frequency(integer, boolean, smallint[]) from public, anon, authenticated;
+grant execute on function number_frequency(integer, boolean, smallint[]) to service_role;
+
+-- 판매점 검색(2026-09-07) — 마스터 전체 지점 대상(배출 이력 없는 지점 포함, 온라인 채널 제외). 공백으로 나눈 토큰이
+-- 상호+주소에 모두 들어가야 하고(ilike, % _ \ 는 이스케이프), 정렬은 상호 완전일치 → 1등 수 → 2등 수 → 상호.
+-- 지역 인자는 두지 않는다(주소에 지역명을 치면 된다 — 같은 날 p_sido 제거). p_open 은 폐점 제외(store_ranking 과 동일).
+-- 18k 행이라 인덱스 없이도 즉시 응답한다.
+drop function if exists store_search(text, text, integer, integer);
+drop function if exists store_search(text, integer, integer);
+create or replace function store_search(
+  p_q text,
+  p_limit integer default 30,
+  p_offset integer default 0,
+  p_open boolean default false
+) returns table (
+  store_id text, name text, sido text, sigungu text, address text, status text,
+  r1 bigint, r2 bigint, total bigint, last_win date
+) language sql stable as $$
+  with tokens as (
+    select replace(replace(replace(t, '\', '\\'), '%', '\%'), '_', '\_') as t
+    from regexp_split_to_table(trim(p_q), '\s+') as t
+    where t <> ''
+  ),
+  hit as (
+    select s.store_id, s.name, s.sido, s.sigungu, s.address, s.status
+    from stores s
+    where s.store_id <> '51100000'
+      and exists (select 1 from tokens)
+      and (not p_open or s.status = 'open')
+      and not exists (
+        select 1 from tokens k
+        where (s.name || ' ' || coalesce(s.address, '')) not ilike ('%' || k.t || '%')
+      )
+  )
+  select h.store_id, h.name, h.sido, h.sigungu, h.address, h.status,
+         count(w.id) filter (where w.rank = 1) as r1,
+         count(w.id) filter (where w.rank = 2) as r2,
+         count(w.id) as total,
+         max(w.draw_date) as last_win
+  from hit h
+  left join store_wins w on w.store_id = h.store_id
+  group by h.store_id, h.name, h.sido, h.sigungu, h.address, h.status
+  order by (lower(h.name) = lower(trim(p_q))) desc,
+           count(w.id) filter (where w.rank = 1) desc,
+           count(w.id) filter (where w.rank = 2) desc,
+           h.name asc, h.store_id asc
+  limit p_limit offset p_offset
+$$;
+
+revoke execute on function store_search(text, integer, integer, boolean) from public, anon, authenticated;
+grant execute on function store_search(text, integer, integer, boolean) to service_role;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 분석·어드민 (2026-08-29) — boss-paegi v1.06 하이브리드 규약의 축소 이식.

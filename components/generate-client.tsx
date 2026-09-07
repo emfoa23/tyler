@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { BallRow } from "@/components/ball";
 import { dateShort } from "@/lib/format";
-import { RANK_LABEL, ballColor, matchedNumbers } from "@/lib/lotto";
+import { RANK_LABEL, matchedNumbers, parsePicked } from "@/lib/lotto";
 import type { DrawNumbers, GeneratedSet, GenerationStats } from "@/lib/types";
 import { getClientId } from "@/lib/client-id";
 import { BragButton } from "@/components/brag-button";
+import { FilterCheckbox } from "@/components/filter-checkbox";
+import { NumberPicker } from "@/components/number-picker";
 
 type ApiData = {
   sets: GeneratedSet[];
@@ -108,6 +110,25 @@ export function GenerateClient() {
       .catch(() => setError("기록을 불러오지 못했습니다."))
       .finally(() => setLoading(false));
   }, [load]);
+
+  // 번호 통계의 '이 번호로 뽑기'(/generate?picked=1,18)로 들어오면 그 번호를 고른 상태로 시작한다 — 뽑기는
+  // 사용자가 누른다. 파라미터는 읽자마자 주소에서 지워 새로고침 때 다시 적용되지 않게 한다(2026-09-07).
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      if (!sp.has("picked")) return;
+      const nums = parsePicked(sp.get("picked") ?? undefined);
+      if (nums.length) {
+        setPicked(nums);
+        setShowPicked(true);
+      }
+      sp.delete("picked");
+      const rest = sp.toString();
+      window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    } catch {
+      // URL 접근 불가 환경 — 무시
+    }
+  }, []);
 
   async function generate(count: number) {
     if (!clientId || busy) return;
@@ -212,26 +233,7 @@ export function GenerateClient() {
               </button>
             )}
           </div>
-          {showPicked && (
-            <div className="mx-auto mt-3 grid w-fit grid-cols-9 gap-1">
-              {Array.from({ length: 45 }, (_, i) => i + 1).map((n) => {
-                const on = picked.includes(n);
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => togglePicked(n)}
-                    className={`flex size-8 items-center justify-center rounded-full text-xs font-bold transition ${
-                      on ? "text-white" : "border border-stone-200 bg-white text-stone-500 hover:bg-stone-50"
-                    }`}
-                    style={on ? { backgroundColor: ballColor(n), textShadow: "0 1px 1px rgba(0,0,0,.3)" } : undefined}
-                  >
-                    {n}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          {showPicked && <NumberPicker picked={picked} onToggle={togglePicked} className="mt-3" />}
           {/* 고른 게 있으면 접어도 안내 유지 — 뽑기 버튼이 뭘 할지는 항상 보여야 한다 */}
           {(showPicked || picked.length > 0) && (
             <p className="mt-2 text-xs text-stone-400">{pickedHint}</p>
@@ -305,16 +307,12 @@ export function GenerateClient() {
               </span>
             )}
           </h2>
-          <label className="flex shrink-0 items-center gap-1.5 text-sm text-stone-500">
-            <input
-              type="checkbox"
-              className="size-4 accent-amber-500"
-              checked={winsOnly}
-              disabled={loading || historyLoading || !clientId}
-              onChange={(e) => toggleWinsOnly(e.target.checked)}
-            />
-            당첨만 보기
-          </label>
+          <FilterCheckbox
+            label="당첨만 보기"
+            checked={winsOnly}
+            disabled={loading || historyLoading || !clientId}
+            onChange={toggleWinsOnly}
+          />
         </div>
         <p className="text-xs text-stone-400">이 기기(브라우저) 기준으로 저장됩니다.</p>
         {loading || historyLoading ? (

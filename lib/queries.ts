@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import { CACHE_TAGS, CACHE_TTL_SECONDS } from "./cache-policy";
 import { db } from "./db";
-import type { Draw, RankingRow, Store, WinningSet } from "./types";
+import type { Draw, RankingRow, Store, StoreSearchRow, WinningSet } from "./types";
 
 export const DRAWS_PER_PAGE = 20;
 export const RANKING_PER_PAGE = 30;
@@ -77,29 +77,51 @@ export async function getDrawWins(drawNo: number): Promise<DrawWin[]> {
   return (data ?? []) as unknown as DrawWin[];
 }
 
-// 기간 창(months)의 기준일은 오늘이 아니라 최신 추첨일(anchor) — 결과가 날짜가 아니라 회차 이벤트 때만
-// 바뀌어 캐시를 길게 둘 수 있다(2026-09-06 사용자 확정). months 가 없으면 기준일은 무의미.
+// 기간 창은 회차 수 하나(draws = 최근 N회, null = 전체 — lib/lotto Period). 회차 뺄셈이라 날짜가 지나도 결과가
+// 안 흔들려 캐시가 안전하다(2026-09-07, 이전의 최신 추첨일 앵커 규칙을 대체).
 export const getRanking = unstable_cache(
   async (params: {
     rank?: "all" | "1" | "2";
-    months?: number | null;
+    draws?: number | null;
     sido?: string | null;
+    open?: boolean; // 폐점 제외
     limit?: number;
     offset?: number;
-    anchor?: string | null; // YYYY-MM-DD, 최신 추첨일
   }): Promise<RankingRow[]> => {
     const { data, error } = await db.rpc("store_ranking", {
       p_rank: params.rank ?? "all",
-      p_months: params.months ?? null,
+      p_draws: params.draws ?? null,
       p_sido: params.sido ?? null,
+      p_open: params.open ?? false,
       p_limit: params.limit ?? RANKING_PER_PAGE,
       p_offset: params.offset ?? 0,
-      ...(params.months && params.anchor ? { p_anchor: params.anchor } : {}),
     });
     if (error) throw error;
     return (data ?? []) as RankingRow[];
   },
   ["store-ranking"],
+  { tags: [CACHE_TAGS.ranking], revalidate: CACHE_TTL_SECONDS },
+);
+
+// 판매점 검색 — 마스터 전체 지점 대상(배출 이력 없는 지점 포함), 공백으로 나눈 토큰이 상호+주소에 모두 들어가야 한다(지역 필터 없음).
+// 정렬은 상호 완전일치 → 1등 수 → 2등 수 → 상호(SQL store_search). 지점·배출 데이터가 바뀌면 ranking 태그로 지워진다.
+export const getStoreSearch = unstable_cache(
+  async (params: {
+    q: string;
+    open?: boolean; // 폐점 제외
+    limit?: number;
+    offset?: number;
+  }): Promise<StoreSearchRow[]> => {
+    const { data, error } = await db.rpc("store_search", {
+      p_q: params.q,
+      p_open: params.open ?? false,
+      p_limit: params.limit ?? RANKING_PER_PAGE,
+      p_offset: params.offset ?? 0,
+    });
+    if (error) throw error;
+    return (data ?? []) as StoreSearchRow[];
+  },
+  ["store-search"],
   { tags: [CACHE_TAGS.ranking], revalidate: CACHE_TTL_SECONDS },
 );
 
@@ -110,18 +132,20 @@ export type NumberFrequencyRow = {
   last_date: string | null;
 };
 
-// 45행 고정이라 limit 은 클라이언트 slice 로 충분 (시그니처 최소 유지)
+// 45행 고정이라 limit 은 클라이언트 slice 로 충분 (시그니처 최소 유지).
+// with 는 조건 번호(같이 나온 번호) — 그 번호를 모두 포함한 회차만 세고, 조건 번호 자신의 행 값이 곧 동반 출현 횟수.
+// 비어 있으면 자주 나오는 번호와 같다(함수 하나가 한 개념).
 export const getNumberFrequency = unstable_cache(
   async (params: {
-    months?: number | null;
+    draws?: number | null;
     bonus?: boolean;
+    with?: number[];
     limit?: number;
-    anchor?: string | null; // YYYY-MM-DD, 최신 추첨일 (getRanking 과 같은 규칙)
   }): Promise<NumberFrequencyRow[]> => {
     const { data, error } = await db.rpc("number_frequency", {
-      p_months: params.months ?? null,
+      p_draws: params.draws ?? null,
       p_bonus: params.bonus ?? false,
-      ...(params.months && params.anchor ? { p_anchor: params.anchor } : {}),
+      p_with: params.with ?? [],
     });
     if (error) throw error;
     const rows = (data ?? []) as NumberFrequencyRow[];

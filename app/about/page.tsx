@@ -28,7 +28,8 @@ export default function AboutPage() {
             나머지를 무작위로 채우는 반자동, 6개를 고르면 그 조합 그대로 기록하는 수동, 7개
             이상 고르면 고른 번호 안에서만 6개를 뽑는 &lsquo;내 번호만 뽑기&rsquo;가 됩니다.
             생성한 번호는 기기별로 보관되며, 추첨이 끝나면 실제 당첨번호와 자동으로 대조해
-            등수를 보여줍니다.
+            등수를 보여줍니다. 번호 통계 화면에서 번호를 골라 &lsquo;이 번호로 뽑기&rsquo;를 누르면
+            그 번호가 선택된 채 이어집니다.
           </li>
           <li>
             <Link href="/history" className="font-medium text-amber-600 hover:underline">
@@ -41,19 +42,35 @@ export default function AboutPage() {
               명당 순위
             </Link>{" "}
             — 1·2등을 배출한 판매점 순위를 지역·기간·등수별로 볼 수 있고, 지점마다 회차별
-            배출 이력을 제공합니다.
+            배출 이력을 제공합니다. 기간은 최근 10·30·50회 프리셋 외에 원하는 회차 수를 직접
+            넣을 수 있고, &lsquo;폐점 제외&rsquo;를 켜면 폐점한 지점을 뺀 순위를 봅니다.
+          </li>
+          <li>
+            <Link href="/stores/search" className="font-medium text-amber-600 hover:underline">
+              판매점 검색
+            </Link>{" "}
+            — 상호나 주소로 전국 판매점을 찾아 그 지점의 1·2등 배출 이력을 확인합니다. 배출
+            이력이 없는 지점도 검색됩니다.
           </li>
           <li>
             <Link href="/numbers" className="font-medium text-amber-600 hover:underline">
               자주 나오는 번호
             </Link>{" "}
-            — 번호별 출현 횟수 순위를 기간별로, 보너스 번호 포함 여부를 골라 볼 수 있습니다.
+            — 번호별 출현 횟수 순위를 기간(최근 N회)별로, 보너스 번호 포함 여부를 골라 볼 수
+            있습니다.
           </li>
           <li>
             <Link href="/numbers/missing" className="font-medium text-amber-600 hover:underline">
               안나온 번호
             </Link>{" "}
             — 번호마다 마지막 출현 뒤 몇 회째 안 나왔는지를 순위로 보여줍니다.
+          </li>
+          <li>
+            <Link href="/numbers/together" className="font-medium text-amber-600 hover:underline">
+              같이 나온 번호
+            </Link>{" "}
+            — 번호를 고르면 그 번호와 같은 회차에 함께 나온 번호를 순위로 보여줍니다. 두세 개를
+            고르면 그 조합이 함께 나온 회차 수와 다음 번호의 궁합을 볼 수 있습니다.
           </li>
         </ul>
       </section>

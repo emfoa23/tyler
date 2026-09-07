@@ -10,16 +10,22 @@
 - [번호 생성](https://lottogen.click/generate): 무작위 번호 생성과 당첨 자동 대조 (번호를 1~5개 고르면 반자동, 6개는 수동, 7개 이상 고르면 그 안에서만 6개를 뽑는 '내 번호만 뽑기' 지원)
 - [회차별 당첨 결과](https://lottogen.click/history): 1회차부터 전 회차 당첨번호·등위별 당첨금, 회차별 상세는 /history/{회차}
 - [명당 순위](https://lottogen.click/stores): 1·2등 배출 판매점 순위(지역·기간·등수 필터), 지점별 상세는 /stores/{지점ID}
+- [판매점 검색](https://lottogen.click/stores/search): 상호·주소로 전국 판매점을 찾고 지점별 1·2등 배출 이력을 확인(배출 이력이 없는 지점도 검색됨)
 - [자주 나오는 번호](https://lottogen.click/numbers): 번호별 출현 횟수 순위(기간·보너스 포함 필터)
 - [안나온 번호](https://lottogen.click/numbers/missing): 번호별 몇 회째 안 나왔는지 순위(보너스 포함 필터)
+- [같이 나온 번호](https://lottogen.click/numbers/together): 고른 번호와 같은 회차에 함께 나온 번호 순위(번호 궁합 — 2·3개 조합의 동반 출현 횟수, 전 기간 기준, 보너스 포함 필터)
+- 번호 통계 세 화면에서 번호를 골라 '이 번호로 뽑기'를 누르면 그 번호가 선택된 채 번호 생성으로 이어진다(/generate?picked=1,18)
 
 ## 페이지 패턴·내용
 
 - 회차 상세 `https://lottogen.click/history/{회차}` — 해당 회차의 당첨번호 6개·보너스, 추첨일, 등위(1~5등)별 당첨자 수·1인당 당첨금·총 당첨금, 1등 구매 유형(자동·수동·반자동), 회차 판매액, 1·2등 배출점(판매점명·지역·당첨 게임 수·구매 방식). 예: /history/1238 = 1238회.
-- 지역별 명당 순위 `https://lottogen.click/stores?sido={시도}` — 시도는 서울·부산·대구·인천·광주·대전·울산·세종·경기·강원·충북·충남·전북·전남·경북·경남·제주 중 하나(예: /stores?sido=서울 = 서울 로또 명당 순위). `rank`(1·2·all)·`months`(6·12·60·all) 필터 병행 가능.
+- 지역별 명당 순위 `https://lottogen.click/stores?sido={시도}` — 시도는 서울·부산·대구·인천·광주·대전·울산·세종·경기·강원·충북·충남·전북·전남·경북·경남·제주 중 하나(예: /stores?sido=서울 = 서울 로또 명당 순위). `rank`(1·2·all)·기간 필터·`open=1`(폐점 제외) 병행 가능.
+- 기간 필터(명당 순위·자주 나오는 번호) — `draws={N}`(최근 N회차, 프리셋 10·30·50, 직접 입력 가능). 없으면 전체 기간. 최신 회차부터 거슬러 센다.
+- 판매점 검색 `https://lottogen.click/stores/search?q={검색어}&open={1}` — 공백으로 나눈 단어가 상호·주소에 모두 포함되는 지점(2글자 이상, 주소에 지역명을 넣어 좁힐 수 있음, `open=1` 이면 폐점 제외). 결과는 상호 완전일치 → 1등 배출 수 → 2등 배출 수 순.
 - 지점 상세 `https://lottogen.click/stores/{지점ID}` — 판매점 정보와 회차별 1·2등 배출 이력.
-- 자주 나오는 번호 `https://lottogen.click/numbers?months={6|12|60}&bonus={0|1}` — 1~45 번호별 출현 횟수·최근 출현.
+- 자주 나오는 번호 `https://lottogen.click/numbers?draws={N}&bonus={0|1}` — 1~45 번호별 출현 횟수·최근 출현.
 - 안나온 번호 `https://lottogen.click/numbers/missing?bonus={0|1}` — 1~45 번호별 마지막 출현 이후 미출현 회차수(최신 회차 기준)·마지막 출현일.
+- 같이 나온 번호 `https://lottogen.click/numbers/together?with={번호,번호}&bonus={0|1}` — 고른 번호를 모두 포함한 회차(전 기간) 안에서 나머지 번호의 출현 횟수·최근 출현. 함께 나온 적 없는 번호는 목록에 없다. 번호 하나(예: /numbers/together?with=7 = 7번과 같이 나온 번호)면 그 번호의 짝 순위, 둘 이상이면 그 조합이 함께 나온 회차 수와 셋째 번호 순위.
 
 ## 데이터·갱신
 
