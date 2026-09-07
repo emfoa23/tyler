@@ -86,7 +86,32 @@ export function storeDisplayName(store: Pick<Store, "store_id" | "name">): strin
 export const NUMBERS_TABS = [
   { href: "/numbers", label: "자주 나오는 번호" },
   { href: "/numbers/missing", label: "안나온 번호" },
+  { href: "/numbers/together", label: "같이 나온 번호" },
 ];
+
+// 명당 2차 메뉴 — /stores 는 섹션 루트이자 기본 뷰(명당 순위), 검색은 마스터 전체 지점 대상(2026-09-07)
+export const STORES_TABS = [
+  { href: "/stores", label: "명당 순위" },
+  { href: "/stores/search", label: "판매점 검색" },
+];
+
+// 같이 나온 번호의 조건 번호(with=1,18) — 1~45 정수, 중복 제거, 오름차순
+export function parseWith(raw: string | undefined): number[] {
+  if (!raw) return [];
+  const nums = raw.split(",").map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 45);
+  return [...new Set(nums)].sort((a, b) => a - b);
+}
+
+// 생성기 진입 파라미터(/generate?picked=1,18) 도 같은 규칙
+export const parsePicked = parseWith;
+
+// 고른 개수가 곧 생성 모드 — 생성기(/api/generate generateSet)와 같은 규칙. 0 은 자동(라벨 없음).
+export function pickedModeLabel(count: number): string | null {
+  if (count === 0) return null;
+  if (count <= 5) return "반자동";
+  if (count === 6) return "수동";
+  return "내 번호만 뽑기";
+}
 
 // 안나온 번호 랭킹: 마지막 출현(last_draw) 이후 몇 회째 안 나왔는지 — 최신 회차 기준
 // 내림차순. 기간 필터가 없는 이유: 미출현 회차수는 최신 회차에서 거슬러 세는 지표라
@@ -116,16 +141,55 @@ export function withCompetitionRank<T>(rows: T[], key: (row: T) => number): (T &
   });
 }
 
-// 기간 필터 공통 옵션 (명당 순위·번호 통계) — URL/RPC 는 월 단위
-export const MONTHS_OPTIONS = [
+// ── 기간 필터 (명당 순위·자주 나오는 번호 공통, 2026-09-07 사용자 확정 — 안나온·같이 나온 번호는 기간 없음) ──
+// 단위는 회차 하나뿐이다 — Period = 최근 N회(null = 전체 기간). 달력(개월) 표현은 복잡도만 올려 두지 않는다.
+// 회차는 1회부터 결번 없이 매주 이어져 draw_no 뺄셈이 정확하고, 그래서 최신 추첨일 앵커가 필요 없다.
+// URL 은 draws=N, DB 함수는 p_draws 하나. 구 주소(months=·years=)는 회차로 환산해 받기만 한다(UI 에 없음).
+export type Period = number | null;
+
+export const PERIOD_PRESETS = [10, 30, 50];
+export const PERIOD_OPTIONS = [
   { value: "all", label: "전체 기간" },
-  { value: "6", label: "최근 6개월" },
-  { value: "12", label: "최근 1년" },
-  { value: "60", label: "최근 5년" },
+  ...PERIOD_PRESETS.map((n) => ({ value: String(n), label: `최근 ${n}회` })),
+  { value: "custom", label: "직접 입력" },
 ];
+export const PERIOD_MAX = 9999;
+
+function positiveInt(raw: string | undefined): number | null {
+  const n = Number(raw);
+  return raw !== undefined && Number.isInteger(n) && n >= 1 && n <= PERIOD_MAX ? n : null;
+}
+
+// URL → Period. 구 months/years 링크는 회차로 환산(1개월 ≈ 4.35회 = 52.18주 ÷ 12) — 새 링크는 draws 만 만든다.
+export function parsePeriod(params: { draws?: string; months?: string; years?: string }): Period {
+  const draws = positiveInt(params.draws);
+  if (draws) return draws;
+  const years = positiveInt(params.years);
+  const months = positiveInt(params.months) ?? (years ? years * 12 : null);
+  return months ? Math.round(months * (52.18 / 12)) : null;
+}
+
+// Period → 셀렉트 값 ("all" | 프리셋 | "custom")
+export function periodValue(period: Period): string {
+  if (!period) return "all";
+  return PERIOD_PRESETS.includes(period) ? String(period) : "custom";
+}
+
+// Period → URL 파라미터 (전체 기간은 없음)
+export function periodParam(period: Period): string | null {
+  return period ? `draws=${period}` : null;
+}
+
+// Period → DB 창. 최신 회차 이상은 전체 기간과 같으므로 null 로 정규화한다.
+export function periodDraws(period: Period, latestNo: number): number | null {
+  return period && period < latestNo ? period : null;
+}
 
 export const SIDO_LIST = [
   "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
   "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주",
 ];
-
+// 판매점 검색어 길이 — 서버(페이지 판정)와 클라이언트(입력칸)가 같은 값을 쓴다.
+// ("use client" 모듈의 상수를 서버 컴포넌트가 import 하면 클라이언트 참조가 되어 숫자로 못 쓴다 — 그래서 여기.)
+export const STORE_SEARCH_MIN = 2;
+export const STORE_SEARCH_MAX = 30;

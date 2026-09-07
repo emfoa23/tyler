@@ -4,7 +4,7 @@ import { NumberStatList } from "@/components/number-stat-list";
 import { NumbersFilter } from "@/components/numbers-filter";
 import { SectionTabs } from "@/components/section-tabs";
 import { dateShort } from "@/lib/format";
-import { NUMBERS_TABS, withCompetitionRank } from "@/lib/lotto";
+import { NUMBERS_TABS, parsePeriod, periodDraws, withCompetitionRank } from "@/lib/lotto";
 import { getLatestDraw, getNumberFrequency } from "@/lib/queries";
 
 // 검색 파라미터(searchParams)를 읽어 Next 가 요청마다 렌더하는 화면 — 페이지 캐시 대신 조회 결과를
@@ -16,7 +16,7 @@ export const metadata: Metadata = pageMeta({
   path: "/numbers",
 });
 
-type Params = { months?: string; bonus?: string };
+type Params = { draws?: string; months?: string; bonus?: string };
 
 export default async function NumbersPage({
   searchParams,
@@ -24,12 +24,12 @@ export default async function NumbersPage({
   searchParams: Promise<Params>;
 }) {
   const params = await searchParams;
-  const months = ["6", "12", "60"].includes(params.months ?? "") ? Number(params.months) : null;
+  const period = parsePeriod(params);
   const bonus = params.bonus === "1";
 
-  // 기간 창의 기준일 = 최신 추첨일 (명당 순위와 같은 규칙)
+  // 기간 창 = 최근 N회 (구 months= 링크는 parsePeriod 가 환산, 최신 회차 이상은 전체 — lib/lotto)
   const latest = await getLatestDraw();
-  const rows = await getNumberFrequency({ months, bonus, anchor: latest?.draw_date ?? null });
+  const rows = await getNumberFrequency({ draws: periodDraws(period, latest?.draw_no ?? 0), bonus });
   const maxCnt = rows[0]?.cnt || 1;
 
   return (
@@ -38,7 +38,7 @@ export default async function NumbersPage({
 
       <SectionTabs tabs={NUMBERS_TABS} current="/numbers" />
 
-      <NumbersFilter basePath="/numbers" months={months ? String(months) : "all"} bonus={bonus ? "1" : "0"} />
+      <NumbersFilter basePath="/numbers" period={period} bonus={bonus ? "1" : "0"} />
 
       <NumberStatList
         items={withCompetitionRank(rows, (r) => r.cnt).map((r) => ({

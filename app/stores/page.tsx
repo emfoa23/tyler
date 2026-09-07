@@ -1,23 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SectionTabs } from "@/components/section-tabs";
 import { StoreBadges } from "@/components/store-badge";
 import { StoresFilter } from "@/components/stores-filter";
 import { dateShort } from "@/lib/format";
-import { SIDO_LIST, isOnlineStore, storeDisplayName } from "@/lib/lotto";
+import {
+  SIDO_LIST, STORES_TABS, isOnlineStore, parsePeriod, periodDraws, periodParam, storeDisplayName, type Period,
+} from "@/lib/lotto";
 import { RANKING_PER_PAGE, getLatestDraw, getRanking } from "@/lib/queries";
 import { pageMeta } from "@/lib/seo";
 
 // 검색 파라미터(searchParams)를 읽어 Next 가 요청마다 렌더하는 화면 — 페이지 캐시 대신 조회 결과를
 // 태그 데이터 캐시(lib/queries, lib/cache-policy)에 7일 보관하고 동기화가 태그로 지운다.
 
-type Params = { rank?: string; months?: string; years?: string; sido?: string; page?: string };
+type Params = { rank?: string; months?: string; draws?: string; years?: string; sido?: string; open?: string; page?: string };
 
 function sidoOf(params: Params): string | null {
   return SIDO_LIST.includes(params.sido ?? "") ? params.sido! : null;
 }
 
 // `?sido=` 변형은 별도 페이지 없이 지역명 title + 자기 canonical 로 색인되게 한다
-// ("서울 로또 명당 순위" 검색 → /stores?sido=서울). rank/months/page 는 같은 내용의 보기 차이라 canonical 에서 제외.
+// ("서울 로또 명당 순위" 검색 → /stores?sido=서울). rank/기간/open/page 는 같은 내용의 보기 차이라 canonical 에서 제외.
 export async function generateMetadata({
   searchParams,
 }: {
@@ -31,15 +34,17 @@ export async function generateMetadata({
   });
 }
 
-function qs(p: Params, overrides: Partial<Params>): string {
-  const merged: Record<string, string | undefined> = { ...p, ...overrides };
+type Query = { rank: "all" | "1" | "2"; period: Period; sido: string | null; open: boolean };
+
+// 페이지네이션 링크용 — 기본값(전체·전체 기간·전국·1페이지)은 생략한다
+function qs(q: Query, page: number): string {
   const parts: string[] = [];
-  for (const [k, v] of Object.entries(merged)) {
-    if (!v) continue;
-    if ((k === "rank" || k === "months" || k === "sido") && v === "all") continue;
-    if (k === "page" && v === "1") continue;
-    parts.push(`${k}=${encodeURIComponent(v)}`);
-  }
+  if (q.rank !== "all") parts.push(`rank=${q.rank}`);
+  const p = periodParam(q.period);
+  if (p) parts.push(p);
+  if (q.sido) parts.push(`sido=${encodeURIComponent(q.sido)}`);
+  if (q.open) parts.push("open=1");
+  if (page > 1) parts.push(`page=${page}`);
   return parts.length ? `?${parts.join("&")}` : "";
 }
 
@@ -50,29 +55,23 @@ export default async function StoresPage({
 }) {
   const params = await searchParams;
   const rank = ["1", "2"].includes(params.rank ?? "") ? (params.rank as "1" | "2") : "all";
-  // 구 URL 호환: years=1|5 는 months 로 환산해 받는다
-  const monthsParam =
-    params.months ?? (params.years === "1" ? "12" : params.years === "5" ? "60" : undefined);
-  const months = ["6", "12", "60"].includes(monthsParam ?? "") ? Number(monthsParam) : null;
+  // 구 URL(months=·years=)은 parsePeriod 가 회차로 환산해 받는다 — 새 링크는 draws 만
+  const period = parsePeriod(params);
   const sido = sidoOf(params);
+  const open = params.open === "1"; // 폐점 제외
   const page = Math.max(1, Number(params.page) || 1);
   const offset = (page - 1) * RANKING_PER_PAGE;
-  // 페이지네이션 링크용 정규화 쿼리 (legacy years 를 months 로 흡수)
-  const query: Params = {
-    rank: rank === "all" ? undefined : rank,
-    months: months ? String(months) : undefined,
-    sido: sido ?? undefined,
-  };
+  const query: Query = { rank, period, sido, open };
 
-  // 기간 창의 기준일 = 최신 추첨일 (오늘 기준이면 날짜가 지날 때마다 결과가 흔들려 캐시할 수 없다)
+  // 기간 창 = 최근 N회 (최신 회차 이상은 전체와 같아 null 로 정규화 — lib/lotto periodDraws)
   const latest = await getLatestDraw();
   const rows = await getRanking({
     rank,
-    months,
+    draws: periodDraws(period, latest?.draw_no ?? 0),
     sido,
+    open,
     limit: RANKING_PER_PAGE + 1,
     offset,
-    anchor: latest?.draw_date ?? null,
   });
   const hasMore = rows.length > RANKING_PER_PAGE;
   const visible = rows.slice(0, RANKING_PER_PAGE);
@@ -81,7 +80,9 @@ export default async function StoresPage({
     <div className="space-y-4">
       <h1 className="text-xl font-bold">{sido ? `${sido} 로또 명당 순위` : "로또 명당 순위"}</h1>
 
-      <StoresFilter rank={rank} months={months ? String(months) : "all"} sido={sido ?? "all"} />
+      <SectionTabs tabs={STORES_TABS} current="/stores" />
+
+      <StoresFilter rank={rank} period={period} sido={sido ?? "all"} open={open} />
 
       <ol className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white px-4">
         {visible.map((s) => (
@@ -119,7 +120,7 @@ export default async function StoresPage({
       <nav className="flex items-center justify-between text-sm">
         {page > 1 ? (
           <Link
-            href={`/stores${qs(query, { page: String(page - 1) })}`}
+            href={`/stores${qs(query, page - 1)}`}
             className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 hover:bg-stone-50"
           >
             ← 이전
@@ -127,7 +128,7 @@ export default async function StoresPage({
         ) : <span />}
         {hasMore && (
           <Link
-            href={`/stores${qs(query, { page: String(page + 1) })}`}
+            href={`/stores${qs(query, page + 1)}`}
             className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 hover:bg-stone-50"
           >
             다음 →

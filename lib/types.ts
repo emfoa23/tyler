@@ -44,6 +44,9 @@ export type RankingRow = {
   rnk: number; // 표준 경쟁 순위(1,1,1,4) — SQL rank() 가 페이징 전 전체 집합에서 계산
 };
 
+// 판매점 검색 행(store_search) — 순위 행에서 rnk 만 없고, 배출 이력이 없는 지점은 total 0·last_win null
+export type StoreSearchRow = Omit<RankingRow, "rnk" | "last_win"> & { last_win: string | null };
+
 export type GeneratedSet = {
   id: number;
   numbers: number[];

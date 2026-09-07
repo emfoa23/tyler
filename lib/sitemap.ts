@@ -1,6 +1,6 @@
 // 사이트맵 인덱스 + 하위 파일 생성기 (2026-09-06). 정본 규칙:
 //   /sitemap.xml            인덱스 — 하위 파일 목록과 파일별 변경일
-//   /sitemaps/core.xml      공개 페이지 8 + 시도별 명당 순위 17 (변경일 = 매주 바뀌는 것은 최신 회차 완성일)
+//   /sitemaps/core.xml      공개 페이지 10 + 시도별 명당 순위 17 + 번호별 같이 나온 번호 45 (변경일 = 매주 바뀌는 것은 최신 회차 완성일)
 //   /sitemaps/history.xml   회차 1..최신 (변경일 = 추첨일, 최신 회차만 완성 시각)
 //   /sitemaps/stores-N.xml  배출 이력이 있는 지점(내용이 있는 페이지만) 5,000개씩 (변경일 = 마지막 배출일·마스터 변경일 중 늦은 쪽)
 // 세 파일 모두 7일 캐시 + 동기화가 경로로 지운다(scripts/lib/changes.mjs FEED_PATHS). 검색엔진에는 인덱스 주소 하나만 등록한다.
@@ -53,8 +53,10 @@ export function coreEntries(latest: Draw): UrlEntry[] {
     { loc: `${SITE}/generate`, changefreq: "monthly", priority: 0.9 },
     { loc: `${SITE}/history`, lastmod: weekly, changefreq: "weekly", priority: 0.8 },
     { loc: `${SITE}/stores`, lastmod: weekly, changefreq: "weekly", priority: 0.8 },
+    { loc: `${SITE}/stores/search`, changefreq: "monthly", priority: 0.6 },
     { loc: `${SITE}/numbers`, lastmod: weekly, changefreq: "weekly", priority: 0.8 },
     { loc: `${SITE}/numbers/missing`, lastmod: weekly, changefreq: "weekly", priority: 0.7 },
+    { loc: `${SITE}/numbers/together`, lastmod: weekly, changefreq: "weekly", priority: 0.7 },
     { loc: `${SITE}/about`, changefreq: "yearly", priority: 0.3 },
     { loc: `${SITE}/privacy`, changefreq: "yearly", priority: 0.3 },
     // 지역별 명당 순위 — 별도 페이지 없이 ?sido= 변형을 자기 canonical 로 색인("서울 로또 명당 순위")
@@ -63,6 +65,13 @@ export function coreEntries(latest: Draw): UrlEntry[] {
       lastmod: weekly,
       changefreq: "weekly",
       priority: 0.6,
+    })),
+    // 번호별 같이 나온 번호 — 같은 방식의 ?with=N 변형 45개("7번과 같이 나온 번호", 자기 canonical)
+    ...Array.from({ length: 45 }, (_, i) => ({
+      loc: `${SITE}/numbers/together?with=${i + 1}`,
+      lastmod: weekly,
+      changefreq: "weekly",
+      priority: 0.5,
     })),
   ];
 }
