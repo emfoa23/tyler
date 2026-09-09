@@ -842,3 +842,12 @@ returns json language sql stable as $$
 $$;
 revoke execute on function sitemap_store_entries() from public, anon, authenticated;
 grant execute on function sitemap_store_entries() to service_role;
+
+-- ── 유입 원본 저장 (2026-09-09) ──────────────────────────────────────────────
+-- '직접' 유입의 실체를 특정할 수 없어(레퍼러 호스트·정규화 소스만 저장) UA 원문과 외부 레퍼러 전체 URL 을
+-- raw 행에 함께 남긴다. 파싱·분류는 저장 시점이 아니라 분석 시점에(원문 보존 → 분류표를 뒤에 바꿔도 재계산 가능).
+-- ua = 서버가 요청 헤더에서 직접 기록(전 kind, 512자), referrer_url = 방문 비콘의 document.referrer
+-- (visit 만, http(s) 만, fragment 제거, 1024자). 보존은 기존 raw 90일 prune 을 그대로 따른다.
+-- 개인정보처리방침 1항 문구를 같은 배포에서 교체(시행일 유지, 사용자 결정).
+alter table analytics_events add column if not exists ua text;
+alter table analytics_events add column if not exists referrer_url text;
