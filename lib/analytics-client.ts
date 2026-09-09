@@ -192,11 +192,15 @@ export function trackGenerateView(): void {
   }
 }
 
-/** 자랑하기 실행 — share(웹 공유 완료)/share_download(폴백). 클릭 기반이라 상호작용 게이트는 이미 통과. */
-export function trackShare(kind: "share" | "share_download", drawNo: number): void {
+/**
+ * 자랑하기 실행 — Web Share 완료든 미지원 폴백(이미지 저장+링크 복사)이든 **share 한 종류**로 센다
+ * (2026-09-09 통일, 사용자 결정: 분리할 이유가 없고 폴백 사례도 0건이었다. 구 share_download 는 스키마·타입에서 제거).
+ * 클릭 기반이라 상호작용 게이트는 이미 통과.
+ */
+export function trackShare(drawNo: number): void {
   try {
     if (isLikelyBot()) return;
-    post({ clientId: getClientId(), kind, drawNo });
+    post({ clientId: getClientId(), kind: "share", drawNo });
   } catch {
     // ignore
   }

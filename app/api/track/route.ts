@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // 방문 비콘의 document.referrer 를 검증(http(s)·fragment 제거·1024자)해 visit 행에만 남긴다.
 // 분류·파싱은 저장 시점이 아니라 분석 시점에 한다 — 어떤 앱/브라우저가 오는지 미리 알 수 없다.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const KINDS = new Set(["visit", "generate_view", "share", "share_download"]);
+const KINDS = new Set(["visit", "generate_view", "share"]);
 const LANDINGS = new Set(["home", "generate", "history", "stores", "numbers", "share", "about", "privacy", "other"]);
 const SRC_KINDS = new Set(["direct", "referrer", "utm", "viral"]);
 const DAILY_EVENT_CAP = 500; // 기기당/일 — 남용 flood 방지(정상 사용은 세션당 2행 수준)
@@ -117,7 +117,7 @@ export async function POST(req: Request) {
       .eq("client_id", clientId)
       .is("first_generate_view_day", null);
   } else {
-    // 자랑하기 실행(share|share_download) — 회차는 유효 범위만 기록, 아니면 null
+    // 자랑하기 실행(share — Web Share 완료·미지원 폴백 저장 통일) — 회차는 유효 범위만 기록, 아니면 null
     const rawDraw = Number(body.drawNo);
     const drawNo = Number.isInteger(rawDraw) && rawDraw >= 1 && rawDraw <= 9999 ? rawDraw : null;
     await db.from("analytics_events").insert({ client_id: clientId, kind, draw_no: drawNo, ua: uaStored });

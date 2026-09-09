@@ -21,7 +21,7 @@ export const LANDING_KO: Record<string, string> = {
 };
 
 /** analytics_events.kind — 표시 순서 = 필터 순서. */
-export const EVENT_KINDS = ["visit", "generate_view", "check", "share", "share_download"] as const;
+export const EVENT_KINDS = ["visit", "generate_view", "check", "share"] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 
 export const KIND_KO: Record<EventKind, string> = {
@@ -29,7 +29,6 @@ export const KIND_KO: Record<EventKind, string> = {
   generate_view: "생성기 진입",
   check: "당첨 확인",
   share: "자랑 실행",
-  share_download: "자랑 저장",
 };
 
 export function isEventKind(v: unknown): v is EventKind {

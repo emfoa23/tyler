@@ -46,7 +46,7 @@ export function EventList({ rows, current }: { rows: RawEvent[]; current: { kind
   return (
     <ul className="space-y-2">
       {rows.map((e) => {
-        const isShare = e.kind === "share" || e.kind === "share_download";
+        const isShare = e.kind === "share";
         return (
           <li key={e.id} className="rounded-2xl border border-stone-200 bg-white p-3 sm:p-4">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
