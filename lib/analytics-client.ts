@@ -1,13 +1,14 @@
 // 방문·이용 통계 클라이언트 수집(집계 전용) — boss-paegi acquisition 로직의 축소 이식.
 // 방문(탭 세션당 1회)·생성기 진입(탭 세션당 1회)을 /api/track 으로 best-effort 전송한다.
-// IP·UA·원본 URL 은 보내지 않는다: 랜딩 그룹 + 정규화된 소스(도메인/utm_source)만.
+// IP·서비스 내 원본 URL 은 보내지 않는다: 랜딩 그룹 + 정규화된 소스(도메인/utm_source) + 외부 레퍼러 원문
+// (document.referrer, 2026-09-09 — '직접' 유입 특정용). UA 는 서버가 요청 헤더에서 직접 기록한다.
 // 클라이언트 전용. 실패는 조용히 무시(수집이 서비스 동작에 영향 주지 않음).
 import { getClientId } from "@/lib/client-id";
 import { BOT_UA_RE } from "@/lib/bot-ua";
 
 // 검색엔진 렌더링 크롤러(Googlebot WRS·네이버 Yeti 등)는 JS 를 실행해 비콘을 울린다 —
 // 페이지당 새 컨텍스트(새 client_id·direct·단발)로 방문 통계를 오염시키므로 발화 전에 거른다.
-// UA 는 판별에만 쓰고 저장하지 않는다(무저장 원칙 유지).
+// UA 는 클라에선 판별에만 쓴다(저장은 서버가 요청 헤더 원문으로 — 클라 값 불신).
 export function isLikelyBot(): boolean {
   try {
     return navigator.webdriver === true || BOT_UA_RE.test(navigator.userAgent);
@@ -172,6 +173,7 @@ export function trackVisit(pathname: string): void {
       landing: landingGroupOf(pathname),
       src: { kind: src.kind, value: src.value },
       ft: { kind: ft.kind, value: ft.value },
+      ref: document.referrer,
     });
   } catch {
     // ignore

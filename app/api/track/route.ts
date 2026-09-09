@@ -6,11 +6,16 @@ export const dynamic = "force-dynamic";
 
 // 방문·이용 통계 수집(집계 전용) — 공개 라우트. 성공/드롭 모두 204(수집 실패가 이용을 막지 않는다).
 // 'check' 는 클라이언트가 보낼 수 없다(GET /api/generate 가 서버에서 적재 — 위조 방지).
+// 원본 저장(2026-09-09): UA 는 서버가 요청 헤더에서 읽어 모든 행에 남기고(클라 값 불신), 외부 레퍼러는
+// 방문 비콘의 document.referrer 를 검증(http(s)·fragment 제거·1024자)해 visit 행에만 남긴다.
+// 분류·파싱은 저장 시점이 아니라 분석 시점에 한다 — 어떤 앱/브라우저가 오는지 미리 알 수 없다.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const KINDS = new Set(["visit", "generate_view", "share", "share_download"]);
 const LANDINGS = new Set(["home", "generate", "history", "stores", "numbers", "share", "about", "privacy", "other"]);
 const SRC_KINDS = new Set(["direct", "referrer", "utm", "viral"]);
 const DAILY_EVENT_CAP = 500; // 기기당/일 — 남용 flood 방지(정상 사용은 세션당 2행 수준)
+const UA_MAX = 512;
+const REFERRER_URL_MAX = 1024;
 
 function noContent(): NextResponse {
   return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
@@ -21,6 +26,21 @@ function normValue(v: unknown): string | null {
   const s = v.trim().toLowerCase().slice(0, 64);
   if (!s || s.includes("@") || s.includes("%40") || s.includes("?") || s.includes("=")) return null;
   return s;
+}
+
+/** 외부 레퍼러 원문 — http(s) URL 만, fragment 제거, 길이 상한. 부적합은 null(행은 유지). */
+function normReferrerUrl(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const s = v.trim();
+  if (!s || s.length > REFERRER_URL_MAX * 2) return null;
+  try {
+    const u = new URL(s);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    u.hash = "";
+    return u.href.slice(0, REFERRER_URL_MAX);
+  } catch {
+    return null;
+  }
 }
 
 function normSource(v: unknown): { kind: string; value: string } | null {
@@ -34,6 +54,7 @@ function normSource(v: unknown): { kind: string; value: string } | null {
 export async function POST(req: Request) {
   const ua = req.headers.get("user-agent") ?? "";
   if (!ua || BOT_UA_RE.test(ua)) return noContent();
+  const uaStored = ua.slice(0, UA_MAX);
 
   const body = await req.json().catch(() => ({}));
   const clientId = typeof body.clientId === "string" ? body.clientId : "";
@@ -61,6 +82,8 @@ export async function POST(req: Request) {
       src_value: src.value,
       ft_kind: ft.kind,
       ft_value: ft.value,
+      ua: uaStored,
+      referrer_url: normReferrerUrl(body.ref),
     });
     // 기기 레지스트리(영구) — 최초행은 first-touch 동결, 이후는 last_seen 만 전진.
     const { error: insertError } = await db.from("analytics_devices").insert({
@@ -87,7 +110,7 @@ export async function POST(req: Request) {
         .is("ft_kind", null);
     }
   } else if (kind === "generate_view") {
-    await db.from("analytics_events").insert({ client_id: clientId, kind: "generate_view" });
+    await db.from("analytics_events").insert({ client_id: clientId, kind: "generate_view", ua: uaStored });
     await db
       .from("analytics_devices")
       .update({ first_generate_view_day: today })
@@ -97,7 +120,7 @@ export async function POST(req: Request) {
     // 자랑하기 실행(share|share_download) — 회차는 유효 범위만 기록, 아니면 null
     const rawDraw = Number(body.drawNo);
     const drawNo = Number.isInteger(rawDraw) && rawDraw >= 1 && rawDraw <= 9999 ? rawDraw : null;
-    await db.from("analytics_events").insert({ client_id: clientId, kind, draw_no: drawNo });
+    await db.from("analytics_events").insert({ client_id: clientId, kind, draw_no: drawNo, ua: uaStored });
     await db
       .from("analytics_devices")
       .update({ first_share_day: today })

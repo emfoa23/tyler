@@ -186,9 +186,12 @@ export async function GET(req: Request) {
       const checkedDraw = drawn?.[0]?.target_draw ?? null;
       if (checkedDraw !== null) {
         const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
-        await db
-          .from("analytics_events")
-          .insert({ client_id: clientId, kind: "check", draw_no: checkedDraw });
+        await db.from("analytics_events").insert({
+          client_id: clientId,
+          kind: "check",
+          draw_no: checkedDraw,
+          ua: (req.headers.get("user-agent") ?? "").slice(0, 512) || null,
+        });
         await db
           .from("analytics_devices")
           .update({ first_check_day: today })
