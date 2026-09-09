@@ -5,10 +5,12 @@ import { redirect } from "next/navigation";
 import { pageMeta } from "@/lib/seo";
 import { ADMIN_COOKIE, checkAdminCookie } from "@/lib/admin-auth";
 import { getRawEvents, parsePageParam } from "@/lib/admin-events";
-import { isEventKind } from "@/lib/admin-labels";
+import { KIND_KO, isEventKind } from "@/lib/admin-labels";
+import { eventsHref, isUuid } from "@/lib/admin-events-url";
 import { AdminLogin } from "@/components/admin-login";
 import { AdminUiMarker } from "@/components/admin-ui-marker";
-import { EventKindFilter, EventList, EventPager, eventsHref } from "@/components/admin-event-list";
+import { EventFilters } from "@/components/admin-event-filter";
+import { EventList, EventPager } from "@/components/admin-event-list";
 
 export const dynamic = "force-dynamic";
 
@@ -20,14 +22,14 @@ export const metadata: Metadata = pageMeta({
 });
 
 /**
- * 원본 이벤트(운영자 전용) — analytics_events raw 를 종류 필터·페이지로 그대로 본다.
+ * 원본 이벤트(운영자 전용) — analytics_events raw 를 종류·기기 ID 필터와 페이지로 그대로 본다.
  * 집계(운영 통계)가 답하지 못하는 "직접 유입이 어디서 오나" 를 UA·레퍼러 원문으로 사람이 읽는 화면.
  * 파싱·분류는 하지 않는다(통제할 수 없는 값이라 미리 쪼갤 기준이 없다).
  */
 export default async function AdminEventsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string; page?: string }>;
+  searchParams: Promise<{ kind?: string; client?: string; page?: string }>;
 }) {
   const cookieStore = await cookies();
   if (!checkAdminCookie(cookieStore.get(ADMIN_COOKIE)?.value)) {
@@ -36,10 +38,13 @@ export default async function AdminEventsPage({
 
   const sp = await searchParams;
   const kind = isEventKind(sp.kind) ? sp.kind : null;
+  const clientId = isUuid(sp.client) ? sp.client.toLowerCase() : null;
   const page = parsePageParam(sp.page);
-  const { rows, total, pageSize } = await getRawEvents({ kind, page });
+  const { rows, total, pageSize } = await getRawEvents({ kind, clientId, page });
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  if (rows.length === 0 && page > 1) redirect(eventsHref(kind, 1));
+  if (rows.length === 0 && page > 1) redirect(eventsHref({ kind, clientId, page: 1 }));
+
+  const filterNote = [kind ? KIND_KO[kind] : null, clientId ? `기기 ${clientId.slice(0, 8)}` : null].filter(Boolean).join(" · ");
 
   return (
     <div className="space-y-4">
@@ -52,14 +57,14 @@ export default async function AdminEventsPage({
       </div>
       <p className="text-xs leading-relaxed text-stone-400">
         방문·이용 원본(최근 90일, 최신순). UA·레퍼러는 저장된 원문 그대로예요 — 어떤 앱·브라우저에서
-        왔는지는 여기서 직접 읽고, 분류는 나중에 정해요.
+        왔는지는 여기서 직접 읽고, 분류는 나중에 정해요. 기기 ID 를 누르면 그 기기의 행동만 모아 봐요.
       </p>
-      <EventKindFilter current={kind} />
+      <EventFilters kind={kind} clientId={clientId} />
       <p className="text-xs text-stone-500">
-        총 {total.toLocaleString()}건{kind && " (필터 적용)"} · {pageSize}건씩
+        총 {total.toLocaleString()}건{filterNote && ` · ${filterNote}`} · {pageSize}건씩
       </p>
-      <EventList rows={rows} />
-      <EventPager kind={kind} page={page} totalPages={totalPages} />
+      <EventList rows={rows} current={{ kind, clientId }} />
+      <EventPager query={{ kind, clientId, page }} totalPages={totalPages} />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { type EventKind } from "@/lib/admin-labels";
 
 // 원본 이벤트(analytics_events raw) 조회 — 서버 전용(db 가 service role). 클라이언트 컴포넌트에서 import 금지.
-// 뷰어 규약: 최신순(created_at desc, id desc — 정렬키=표시키·id tiebreaker), 페이지 50건, 종류 필터만.
+// 뷰어 규약: 최신순(created_at desc, id desc — 정렬키=표시키·id tiebreaker), 페이지 50건, 필터는 종류·기기 ID(UUID 정확 일치).
 // UA·레퍼러 원문은 저장 시점에 파싱하지 않고(어떤 앱/브라우저가 오는지 미리 알 수 없음) 여기서 그대로 보여준다.
 // raw 는 90일 prune 대상이므로 이 화면도 최근 90일이 상한이다.
 
@@ -32,6 +32,7 @@ export function parsePageParam(raw: string | undefined): number {
 
 export async function getRawEvents(opts: {
   kind: EventKind | null;
+  clientId: string | null;
   page: number;
 }): Promise<{ rows: RawEvent[]; total: number; pageSize: number }> {
   const from = (opts.page - 1) * EVENT_PAGE_SIZE;
@@ -46,6 +47,7 @@ export async function getRawEvents(opts: {
     .order("id", { ascending: false })
     .range(from, to);
   if (opts.kind) q = q.eq("kind", opts.kind);
+  if (opts.clientId) q = q.eq("client_id", opts.clientId);
   const { data, count, error } = await q;
   if (error) throw new Error(`raw events query failed: ${error.message}`);
   return { rows: (data ?? []) as RawEvent[], total: count ?? 0, pageSize: EVENT_PAGE_SIZE };

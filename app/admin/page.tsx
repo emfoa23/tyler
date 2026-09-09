@@ -69,16 +69,14 @@ export default async function AdminPage({
       <AdminUiMarker />
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <h1 className="text-xl font-bold">운영 통계</h1>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <AdminPeriodTabs current={window} />
-          <Link
-            href="/admin/events"
-            className="whitespace-nowrap text-sm font-medium text-stone-500 hover:text-stone-900"
-          >
-            원본 이벤트 →
-          </Link>
-        </div>
+        <Link
+          href="/admin/events"
+          className="whitespace-nowrap text-sm font-medium text-stone-500 hover:text-stone-900"
+        >
+          원본 이벤트 →
+        </Link>
       </div>
+      <AdminPeriodTabs current={window} />
       <p className="text-xs leading-relaxed text-stone-400">
         오늘은 실시간, 어제까지는 일 단위 확정 집계예요.
       </p>
