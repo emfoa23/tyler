@@ -7,31 +7,13 @@ import type {
   RetentionRow,
   StatWindow,
 } from "@/lib/admin-analytics";
+import { LANDING_KO, srcLabel } from "@/lib/admin-labels";
 import { metricByDim, metricTotal } from "@/lib/admin-analytics";
 
 // 운영 통계 표시 컴포넌트(서버) — 차트 라이브러리 없이 카드·CSS 바·테이블.
 // 사이트 톤(white/stone/amber) 유지. 넓은 테이블은 overflow-x-auto(375px 무깨짐 규칙).
 
-const SRC_KO: Record<string, string> = { direct: "직접", referrer: "레퍼러", utm: "UTM", viral: "공유 링크" };
-const LANDING_KO: Record<string, string> = {
-  home: "홈",
-  generate: "번호 생성",
-  history: "당첨 결과",
-  stores: "명당 순위",
-  numbers: "번호 통계",
-  about: "서비스 소개",
-  privacy: "개인정보처리방침",
-  other: "기타",
-};
 
-function srcLabel(key: string): string {
-  const [kind, value] = key.split(" · ");
-  // first-touch 미상(기기 행이 서버 적재로 먼저 생긴 경우) — 빈 칸 대신 명시
-  if (!kind) return "미상";
-  const k = SRC_KO[kind] ?? kind;
-  if (!value || kind === "direct" || kind === "viral") return k;
-  return `${k} · ${value}`;
-}
 
 const nf = (n: number) => n.toLocaleString();
 const pct = (num: number, den: number) => (den > 0 ? `${Math.round((num / den) * 100)}%` : "—");

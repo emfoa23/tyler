@@ -108,6 +108,11 @@ hydration 이 안 돼 셀렉트·버튼이 반응하지 않는다), http 라 `cr
   first-touch 가 NULL(미상)로 시작하고 **첫 방문 비콘이 1회 채운다**(이후 동결; 어드민은 빈 값을 '미상'으로 표시)
   (개인정보처리방침 2026-08-29 개정 고지). 번호 선택 사용은 `generated_sets.picked_count`(과거
   null=미상 — 0 자동·1~5 반자동·6 수동·7+ '내 번호만 뽑기', 2026-09-02 `fixed_count` 에서 개명).
+- **원본 이벤트 뷰어(`/admin/events`, 2026-09-09)**: `analytics_events` raw 를 종류 필터(방문·생성기 진입·당첨 확인·
+  자랑 실행·자랑 저장)와 페이지(50건, 최신순 `created_at desc, id desc`)로 그대로 본다 — 행 카드에 시각·종류·랜딩·소스·
+  최초유입·기기(앞 8자)·**UA 원문·레퍼러 원문**. 표가 아니라 카드라 375px 에서 가로 스크롤 없이 `break-all` 로 접힌다.
+  파싱·분류 없음(통제할 수 없는 값이라 미리 쪼갤 기준이 없다 — 사람이 읽고 분류는 뒤에). 라벨은 `lib/admin-labels.ts`
+  단일 소스(집계 섹션과 공용). `/admin` 헤더의 '원본 이벤트 →' 링크로 진입, 어드민 쿠키 게이트 동일.
 - **하이브리드 규약(boss-paegi v1.06 이식)**: 카운트류 = `analytics_rollups(day_kst<오늘)` +
   오늘 라이브 `analytics_rollup_rows_for_day(오늘)` — 하루치 집계 SQL 함수가 cron(INSERT)과
   어드민 라이브(SELECT)의 단일 소스. 윈도우 distinct 기기·회차 리텐션·성적표는 raw 직조회 RPC
