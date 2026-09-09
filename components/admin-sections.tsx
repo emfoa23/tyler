@@ -206,7 +206,7 @@ export function ViralLoopSection({
         <StatCard label="그중 생성 도달" value={nf(viralGen)} sub={pct(viralGen, viralNew)} />
       </div>
       <p className="mt-2 text-xs leading-relaxed text-stone-400">
-        윈도우 집계 근사(인과 아님). 자랑 실행 = 공유 시트 완료(또는 미지원 폴백 저장). 공유
+        윈도우 집계 근사(인과 아님). 자랑 실행 = 공유 시트 완료 또는 미지원 폴백(이미지 저장+링크 복사), 한 종류로 집계. 공유
         유입은 /share 링크 랜딩 기준
         — 이미지 워터마크만 보고 직접 들어온 유입은 &lsquo;직접&rsquo;으로 잡혀요. 신규 기기
         귀속은 first-touch 기준.

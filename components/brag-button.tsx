@@ -64,7 +64,7 @@ export function BragButton({
         } catch {
           // 클립보드 불가 — 이미지 저장만
         }
-        trackShare("share_download", target);
+        trackShare(target); // 폴백도 자랑 실행 1건(share) — 종류 분리 없음
         setState("copied");
         window.setTimeout(() => setState("idle"), 2500);
       };
@@ -72,7 +72,7 @@ export function BragButton({
       if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file], text: link });
-          trackShare("share", target); // 시트에서 대상 선택까지 완료된 경우만 resolve
+          trackShare(target); // 시트에서 대상 선택까지 완료된 경우만 resolve
           setState("idle");
         } catch (e) {
           if ((e as DOMException)?.name === "AbortError") {

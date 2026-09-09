@@ -851,3 +851,145 @@ grant execute on function sitemap_store_entries() to service_role;
 -- 개인정보처리방침 1항 문구를 같은 배포에서 교체(시행일 유지, 사용자 결정).
 alter table analytics_events add column if not exists ua text;
 alter table analytics_events add column if not exists referrer_url text;
+
+-- ── 자랑 실행 이벤트 단일화 (2026-09-09) ──────────────────────────────────────
+-- share_download(미지원 폴백: 이미지 저장+링크 복사)를 share 와 분리할 이유가 없고 사례도 0건(prod 실측)이라 폐기.
+-- 폴백 경로도 share 1건으로 기록한다(사용자 결정). 기존 행은 없지만 다른 환경 대비 share 로 흡수한 뒤 CHECK 를 좁힌다.
+-- 함수 3개(gen_draw_report·analytics_rollup_rows_for_day·admin_viral_loop)는 라이브 정의에서 `in ('share','share_download')` 만
+-- `= 'share'` 로 바꾼 것(share_actions 의 dim1 은 group by kind 그대로 'share' 로 유지 — 기존 롤업 행과 연속).
+update analytics_events set kind = 'share' where kind = 'share_download';
+alter table analytics_events drop constraint if exists analytics_events_kind_check;
+alter table analytics_events add constraint analytics_events_kind_check
+  check (kind in ('visit', 'generate_view', 'check', 'share'));
+CREATE OR REPLACE FUNCTION public.gen_draw_report(p_draws integer DEFAULT 8)
+ RETURNS TABLE(draw_no integer, participants bigint, sets bigint, checked_sets bigint, r1 bigint, r2 bigint, r3 bigint, r4 bigint, r5 bigint, post_check_devices bigint, share_devices bigint)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+begin
+  if p_draws is null or p_draws not between 1 and 52 then
+    raise exception 'gen_draw_report_invalid_draws' using errcode = '22023';
+  end if;
+  return query
+  with recent as (
+    select g.target_draw from generated_sets g group by g.target_draw order by g.target_draw desc limit p_draws
+  )
+  select r.target_draw,
+    a.participants, a.sets, a.checked_sets, a.r1, a.r2, a.r3, a.r4, a.r5,
+    coalesce(c.post_check, 0), coalesce(sh.share_devs, 0)
+  from recent r
+  left join lateral (
+    select count(distinct g.client_id) as participants, count(*) as sets,
+      count(*) filter (where g.checked_at is not null) as checked_sets,
+      count(*) filter (where g.matched_rank = 1) as r1,
+      count(*) filter (where g.matched_rank = 2) as r2,
+      count(*) filter (where g.matched_rank = 3) as r3,
+      count(*) filter (where g.matched_rank = 4) as r4,
+      count(*) filter (where g.matched_rank = 5) as r5
+    from generated_sets g where g.target_draw = r.target_draw
+  ) a on true
+  left join lateral (
+    select count(distinct e.client_id) as post_check
+    from analytics_events e
+    where e.kind = 'check' and e.draw_no = r.target_draw
+  ) c on true
+  left join lateral (
+    select count(distinct e.client_id) as share_devs
+    from analytics_events e
+    where e.kind = 'share' and e.draw_no = r.target_draw
+  ) sh on true
+  order by r.target_draw desc;
+end $function$;
+CREATE OR REPLACE FUNCTION public.analytics_rollup_rows_for_day(p_day date)
+ RETURNS TABLE(metric text, dim1 text, dim2 text, value bigint)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_lo timestamptz;
+  v_hi timestamptz;
+begin
+  if p_day is null then
+    raise exception 'analytics_rollup_rows_for_day_invalid_day' using errcode = '22023';
+  end if;
+  v_lo := (p_day::timestamp at time zone 'Asia/Seoul');
+  v_hi := ((p_day + 1)::timestamp at time zone 'Asia/Seoul');
+  return query
+  select 'visit_total'::text, ''::text, ''::text, count(*)::bigint
+    from analytics_events e where e.kind = 'visit' and e.day_kst = p_day
+  union all
+  select 'visit_devices', '', '', count(distinct e.client_id)::bigint
+    from analytics_events e where e.kind = 'visit' and e.day_kst = p_day
+  union all
+  select 'visit_new_devices', '', '', count(*)::bigint
+    from analytics_devices d where d.first_seen_day = p_day
+  union all
+  select 'visit_by_landing', coalesce(e.landing, ''), '', count(*)::bigint
+    from analytics_events e where e.kind = 'visit' and e.day_kst = p_day group by e.landing
+  union all
+  select 'visit_by_src', coalesce(e.src_kind, ''), coalesce(e.src_value, ''), count(*)::bigint
+    from analytics_events e where e.kind = 'visit' and e.day_kst = p_day group by e.src_kind, e.src_value
+  union all
+  select 'acq_new_by_ft', coalesce(d.ft_kind, ''), coalesce(d.ft_value, ''), count(*)::bigint
+    from analytics_devices d where d.first_seen_day = p_day group by d.ft_kind, d.ft_value
+  union all
+  select 'generate_view_devices', '', '', count(distinct e.client_id)::bigint
+    from analytics_events e where e.kind = 'generate_view' and e.day_kst = p_day
+  union all
+  select 'check_devices', '', '', count(distinct e.client_id)::bigint
+    from analytics_events e where e.kind = 'check' and e.day_kst = p_day
+  union all
+  -- 자랑하기 실행(공유·저장 폴백 합산 기기/건수)
+  select 'share_devices', '', '', count(distinct e.client_id)::bigint
+    from analytics_events e where e.kind = 'share' and e.day_kst = p_day
+  union all
+  select 'share_actions', e.kind, '', count(*)::bigint
+    from analytics_events e where e.kind = 'share' and e.day_kst = p_day group by e.kind
+  union all
+  select 'gen_sets', '', '', count(*)::bigint
+    from generated_sets g where g.created_at >= v_lo and g.created_at < v_hi
+  union all
+  select 'gen_devices', '', '', count(distinct g.client_id)::bigint
+    from generated_sets g where g.created_at >= v_lo and g.created_at < v_hi
+  union all
+  select 'gen_new_devices', '', '', count(*)::bigint from (
+    select g.client_id, min(g.created_at) as mc from generated_sets g group by g.client_id
+  ) t where t.mc >= v_lo and t.mc < v_hi
+  union all
+  select 'gen_by_target', g.target_draw::text, '', count(*)::bigint
+    from generated_sets g where g.created_at >= v_lo and g.created_at < v_hi group by g.target_draw;
+end $function$;
+CREATE OR REPLACE FUNCTION public.admin_viral_loop(p_days integer DEFAULT NULL::integer)
+ RETURNS TABLE(metric text, devices bigint)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_today date := (now() at time zone 'Asia/Seoul')::date;
+  v_from date;
+begin
+  if p_days is not null and p_days not between 1 and 90 then
+    raise exception 'admin_viral_loop_invalid_days' using errcode = '22023';
+  end if;
+  v_from := case when p_days is null then null else v_today - (p_days - 1) end;
+  return query
+  -- 자랑 실행 기기(공유+저장): 전체=레지스트리 / 윈도우=raw
+  select 'share_devices'::text, case when p_days is null
+    then (select count(*) from analytics_devices d where d.first_share_day is not null)
+    else (select count(distinct e.client_id) from analytics_events e
+          where e.kind = 'share' and e.day_kst >= v_from) end
+  union all
+  -- 공유 링크로 획득된 신규 기기(first-touch=viral)
+  select 'viral_new_devices', (
+    select count(*) from analytics_devices d
+    where d.ft_kind = 'viral' and (v_from is null or d.first_seen_day >= v_from))
+  union all
+  -- 그중 생성까지 간 기기(루프 완성)
+  select 'viral_gen_devices', (
+    select count(*) from analytics_devices d
+    where d.ft_kind = 'viral' and d.first_gen_day is not null
+      and (v_from is null or d.first_seen_day >= v_from));
+end $function$;
