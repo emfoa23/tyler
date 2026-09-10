@@ -6,6 +6,7 @@
 // 세 파일 모두 7일 캐시 + 동기화가 경로로 지운다(scripts/lib/changes.mjs FEED_PATHS). 검색엔진에는 인덱스 주소 하나만 등록한다.
 import { db } from "./db";
 import { SIDO_LIST, drawDateFor } from "./lotto";
+import { kstDay } from "./kst.mjs";
 import type { Draw } from "./types";
 
 export const SITE = "https://lottogen.click";
@@ -43,7 +44,7 @@ export const xmlResponse = (xml: string) =>
 /** 최신 회차의 "완성일"(YYYY-MM-DD, KST) — 매주 바뀌는 페이지들의 변경일. 완성 전이면 추첨일. */
 export function latestChangedDate(latest: Pick<Draw, "draw_date" | "completed_at">): string {
   if (!latest.completed_at) return latest.draw_date;
-  return new Date(latest.completed_at).toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+  return kstDay(latest.completed_at);
 }
 
 export function coreEntries(latest: Draw): UrlEntry[] {
