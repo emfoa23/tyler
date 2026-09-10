@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { BOT_UA_RE } from "@/lib/bot-ua";
+import { kstDay } from "@/lib/kst.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
   const kind = typeof body.kind === "string" ? body.kind : "";
   if (!UUID_RE.test(clientId) || !KINDS.has(kind)) return noContent();
 
-  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+  const today = kstDay();
   const { count } = await db
     .from("analytics_events")
     .select("*", { count: "exact", head: true })

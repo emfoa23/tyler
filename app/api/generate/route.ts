@@ -2,10 +2,13 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { drawDateFor, targetDrawFor } from "@/lib/lotto";
 import { getLatestDraw } from "@/lib/queries";
+import { kstDay, kstDayStart } from "@/lib/kst.mjs";
 
 export const dynamic = "force-dynamic";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// 기기당 하루 생성 한도 — 하루 = KST 달력일, 자정에 초기화(2026-09-10 확정). 그 전엔 "지금-24시간" 롤링 창이어서
+// 429 문구("오늘·내일")·개인정보처리방침("일일 한도")과 뜻이 달랐다. 남용 방지가 목적이라 자정 전후 연속 생성은 허용.
 const DAILY_LIMIT = 200;
 const MAX_BATCH = 5;
 
@@ -64,7 +67,7 @@ export async function POST(req: Request) {
   }
   const target = targetDrawFor(new Date(), latest);
 
-  const since = new Date(Date.now() - 86400_000).toISOString();
+  const since = kstDayStart(kstDay()).toISOString(); // 오늘(KST) 00:00 이후 생성분만 센다
   const { count: used, error: countError } = await db
     .from("generated_sets")
     .select("*", { count: "exact", head: true })
@@ -75,7 +78,7 @@ export async function POST(req: Request) {
   }
   if ((used ?? 0) + count > DAILY_LIMIT) {
     return NextResponse.json(
-      { error: "오늘 생성 한도(200세트)에 도달했습니다. 내일 다시 시도해주세요." },
+      { error: "오늘 생성 한도(200세트)에 도달했습니다. 자정 이후 다시 시도해주세요." },
       { status: 429 },
     );
   }
@@ -108,7 +111,7 @@ export async function POST(req: Request) {
 
   // 기기 레지스트리(방문·이용 통계) — best-effort, 실패해도 생성 응답에 영향 없음.
   try {
-    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+    const today = kstDay();
     const { error: regError } = await db.from("analytics_devices").insert({
       client_id: clientId,
       first_seen_day: today,
@@ -185,7 +188,7 @@ export async function GET(req: Request) {
         .limit(1);
       const checkedDraw = drawn?.[0]?.target_draw ?? null;
       if (checkedDraw !== null) {
-        const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+        const today = kstDay();
         await db.from("analytics_events").insert({
           client_id: clientId,
           kind: "check",

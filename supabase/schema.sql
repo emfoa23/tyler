@@ -290,6 +290,24 @@ do $$ begin
 end $$;
 alter table generated_sets add column if not exists picked_count smallint;
 
+-- ── 시간 기준: 하루 = KST 달력일 (2026-09-10) ──────────────────────────────────
+-- 하루 = Asia/Seoul 달력일 [00:00, 24:00). 순간은 timestamptz, 날짜(date 컬럼·*_day·day_kst)는 KST 달력일이다.
+-- DB TimeZone 은 UTC 그대로 둔다(설정에 기대면 로컬·새 환경에서 조용히 어긋난다) — 대신 날짜 계산은 아래 세 함수만
+-- 거친다. 함수 본문에 current_date·now()::date·date_trunc('day')·인라인 시간대 변환을 쓰지 않는다(파일 말미의
+-- 자가 검사 do 블록과 scripts/check-kst.mjs 가 잡는다). 앱 쪽 짝은 lib/kst.mjs. 생성 한도(기기당 하루 200세트)도
+-- 이 달력일 기준으로 자정에 초기화된다(2026-09-10, 이전엔 "지금-24시간" 롤링 창).
+create or replace function kst_today() returns date language sql stable as $$
+  select (now() at time zone 'Asia/Seoul')::date
+$$;
+create or replace function kst_day(p_at timestamptz) returns date language sql immutable as $$
+  select (p_at at time zone 'Asia/Seoul')::date
+$$;
+create or replace function kst_day_start(p_day date) returns timestamptz language sql immutable as $$
+  select p_day::timestamp at time zone 'Asia/Seoul'
+$$;
+revoke execute on function kst_today(), kst_day(timestamptz), kst_day_start(date) from public, anon, authenticated;
+grant execute on function kst_today(), kst_day(timestamptz), kst_day_start(date) to service_role;
+
 create table if not exists analytics_events (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
@@ -308,7 +326,7 @@ alter table analytics_events enable row level security;
 
 create or replace function analytics_events_set_day_kst() returns trigger language plpgsql as $$
 begin
-  new.day_kst := (new.created_at at time zone 'Asia/Seoul')::date;
+  new.day_kst := kst_day(new.created_at);
   return new;
 end $$;
 drop trigger if exists trg_analytics_events_day_kst on analytics_events;
@@ -337,7 +355,7 @@ create or replace function analytics_devices_seed_first_seen() returns trigger l
 declare
   v_first_gen date;
 begin
-  select min((g.created_at at time zone 'Asia/Seoul')::date) into v_first_gen
+  select min(kst_day(g.created_at)) into v_first_gen
   from generated_sets g where g.client_id = new.client_id;
   if v_first_gen is not null then
     if v_first_gen < new.first_seen_day then new.first_seen_day := v_first_gen; end if;
@@ -371,8 +389,8 @@ begin
   if p_day is null then
     raise exception 'analytics_rollup_rows_for_day_invalid_day' using errcode = '22023';
   end if;
-  v_lo := (p_day::timestamp at time zone 'Asia/Seoul');
-  v_hi := ((p_day + 1)::timestamp at time zone 'Asia/Seoul');
+  v_lo := kst_day_start(p_day);
+  v_hi := kst_day_start(p_day + 1);
   return query
   select 'visit_total'::text, ''::text, ''::text, count(*)::bigint
     from analytics_events e where e.kind = 'visit' and e.day_kst = p_day
@@ -427,7 +445,7 @@ returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   c_min_days constant integer := 1;
   c_max_days constant integer := 91;
-  v_today date := (now() at time zone 'Asia/Seoul')::date;
+  v_today date := kst_today();
   v_d date;
   i integer;
 begin
@@ -457,7 +475,7 @@ begin
     raise exception 'prune_analytics_events_invalid_retention_days' using errcode = '22023';
   end if;
   perform pg_advisory_xact_lock(hashtext('analytics_rollups'));
-  v_cutoff := (now() at time zone 'Asia/Seoul')::date - p_retention_days;
+  v_cutoff := kst_today() - p_retention_days;
   delete from analytics_events where day_kst < v_cutoff;
   get diagnostics v_deleted = row_count;
   return jsonb_build_object('ok', true, 'deleted', v_deleted, 'cutoff', v_cutoff);
@@ -468,7 +486,7 @@ create or replace function admin_funnel_window(p_days integer default null)
 returns table (stage text, devices bigint)
 language plpgsql stable security definer set search_path = public as $$
 declare
-  v_today date := (now() at time zone 'Asia/Seoul')::date;
+  v_today date := kst_today();
   v_from date;
   v_from_ts timestamptz;
 begin
@@ -476,7 +494,7 @@ begin
     raise exception 'admin_funnel_window_invalid_days' using errcode = '22023';
   end if;
   v_from := case when p_days is null then null else v_today - (p_days - 1) end;
-  v_from_ts := case when v_from is null then null else (v_from::timestamp at time zone 'Asia/Seoul') end;
+  v_from_ts := case when v_from is null then null else kst_day_start(v_from) end;
   return query
   -- 방문: 전체=기기 레지스트리(영구 정확) / 윈도우=raw(90일 내 정확)
   select 'visit'::text, case when p_days is null
@@ -517,7 +535,7 @@ create or replace function admin_engagement_window(p_days integer default null)
 returns table (metric text, devices bigint)
 language plpgsql stable security definer set search_path = public as $$
 declare
-  v_today date := (now() at time zone 'Asia/Seoul')::date;
+  v_today date := kst_today();
   v_from date;
   v_from_ts timestamptz;
 begin
@@ -525,7 +543,7 @@ begin
     raise exception 'admin_engagement_window_invalid_days' using errcode = '22023';
   end if;
   v_from := case when p_days is null then null else v_today - (p_days - 1) end;
-  v_from_ts := case when v_from is null then null else (v_from::timestamp at time zone 'Asia/Seoul') end;
+  v_from_ts := case when v_from is null then null else kst_day_start(v_from) end;
   return query
   select 'returning_visit_devices'::text, case when p_days is null
     then (select count(*) from analytics_devices d where d.last_seen_day > d.first_seen_day)
@@ -535,10 +553,10 @@ begin
   union all
   select 'returning_gen_devices', (
     select count(distinct g.client_id) from generated_sets g
-    join (select g2.client_id, min((g2.created_at at time zone 'Asia/Seoul')::date) as first_day
+    join (select g2.client_id, min(kst_day(g2.created_at)) as first_day
           from generated_sets g2 group by g2.client_id) f on f.client_id = g.client_id
     where (v_from_ts is null or g.created_at >= v_from_ts)
-      and (g.created_at at time zone 'Asia/Seoul')::date > f.first_day);
+      and kst_day(g.created_at) > f.first_day);
 end $$;
 
 -- first-touch 소스별 기기 획득→활성 전환(레지스트리 기반 — 영구 정확)
@@ -546,7 +564,7 @@ create or replace function acq_ft_conversion(p_days integer default null)
 returns table (ft_kind text, ft_value text, devices bigint, gen_devices bigint, check_devices bigint)
 language plpgsql stable security definer set search_path = public as $$
 declare
-  v_today date := (now() at time zone 'Asia/Seoul')::date;
+  v_today date := kst_today();
   v_from date;
 begin
   if p_days is not null and p_days not between 1 and 90 then
@@ -641,14 +659,14 @@ create or replace function gen_device_depth(p_days integer default null)
 returns table (bucket text, devices bigint)
 language plpgsql stable security definer set search_path = public as $$
 declare
-  v_today date := (now() at time zone 'Asia/Seoul')::date;
+  v_today date := kst_today();
   v_from_ts timestamptz;
 begin
   if p_days is not null and p_days not between 1 and 90 then
     raise exception 'gen_device_depth_invalid_days' using errcode = '22023';
   end if;
   v_from_ts := case when p_days is null then null
-    else ((v_today - (p_days - 1))::timestamp at time zone 'Asia/Seoul') end;
+    else kst_day_start(v_today - (p_days - 1)) end;
   return query
   with per as (
     select g.client_id, count(*) as n from generated_sets g
@@ -707,8 +725,8 @@ begin
   if p_day is null then
     raise exception 'analytics_rollup_rows_for_day_invalid_day' using errcode = '22023';
   end if;
-  v_lo := (p_day::timestamp at time zone 'Asia/Seoul');
-  v_hi := ((p_day + 1)::timestamp at time zone 'Asia/Seoul');
+  v_lo := kst_day_start(p_day);
+  v_hi := kst_day_start(p_day + 1);
   return query
   select 'visit_total'::text, ''::text, ''::text, count(*)::bigint
     from analytics_events e where e.kind = 'visit' and e.day_kst = p_day
@@ -760,7 +778,7 @@ create or replace function admin_viral_loop(p_days integer default null)
 returns table (metric text, devices bigint)
 language plpgsql stable security definer set search_path = public as $$
 declare
-  v_today date := (now() at time zone 'Asia/Seoul')::date;
+  v_today date := kst_today();
   v_from date;
 begin
   if p_days is not null and p_days not between 1 and 90 then
@@ -822,7 +840,7 @@ drop function if exists generated_number_frequency();
 update analytics_devices d
 set first_seen_day = least(d.first_seen_day, f.first_day),
     first_gen_day = least(coalesce(d.first_gen_day, f.first_day), f.first_day)
-from (select client_id, min((created_at at time zone 'Asia/Seoul')::date) as first_day
+from (select client_id, min(kst_day(created_at)) as first_day
       from generated_sets group by client_id) f
 where f.client_id = d.client_id
   and (f.first_day < d.first_seen_day or d.first_gen_day is null or f.first_day < d.first_gen_day);
@@ -835,7 +853,7 @@ returns json language sql stable as $$
   select coalesce(json_agg(json_build_object('id', t.store_id, 'lastmod', t.lastmod) order by t.store_id), '[]'::json)
   from (
     select w.store_id,
-           greatest(max(w.draw_date), max(case when s.updated_at > s.created_at + interval '1 minute' then s.updated_at::date end)) as lastmod
+           greatest(max(w.draw_date), max(case when s.updated_at > s.created_at + interval '1 minute' then kst_day(s.updated_at) end)) as lastmod
     from store_wins w join stores s on s.store_id = w.store_id
     group by w.store_id
   ) t
@@ -914,8 +932,8 @@ begin
   if p_day is null then
     raise exception 'analytics_rollup_rows_for_day_invalid_day' using errcode = '22023';
   end if;
-  v_lo := (p_day::timestamp at time zone 'Asia/Seoul');
-  v_hi := ((p_day + 1)::timestamp at time zone 'Asia/Seoul');
+  v_lo := kst_day_start(p_day);
+  v_hi := kst_day_start(p_day + 1);
   return query
   select 'visit_total'::text, ''::text, ''::text, count(*)::bigint
     from analytics_events e where e.kind = 'visit' and e.day_kst = p_day
@@ -968,7 +986,7 @@ CREATE OR REPLACE FUNCTION public.admin_viral_loop(p_days integer DEFAULT NULL::
  SET search_path TO 'public'
 AS $function$
 declare
-  v_today date := (now() at time zone 'Asia/Seoul')::date;
+  v_today date := kst_today();
   v_from date;
 begin
   if p_days is not null and p_days not between 1 and 90 then
@@ -993,3 +1011,40 @@ begin
     where d.ft_kind = 'viral' and d.first_gen_day is not null
       and (v_from is null or d.first_seen_day >= v_from));
 end $function$;
+
+-- ── 시간 기준 자가 검사 (2026-09-10) ──────────────────────────────────────────
+-- 적용 직후 public 함수 본문에 kst_* 헬퍼를 우회하는 날짜 관용구가 남아 있으면 실패시킨다. 프로드 함수가 이 파일과
+-- 어긋난 채 남는 드리프트도 같은 함수로 잡는다: `select * from kst_lint_functions()` 가 비어 있어야 한다.
+comment on column analytics_events.day_kst is 'KST 달력일 = kst_day(created_at) (트리거)';
+comment on column analytics_rollups.day_kst is 'KST 달력일';
+comment on column analytics_devices.first_seen_day is 'KST 달력일(방문·생성 중 먼저 관측된 날)';
+comment on column analytics_devices.last_seen_day is 'KST 달력일';
+comment on column analytics_devices.first_generate_view_day is 'KST 달력일';
+comment on column analytics_devices.first_check_day is 'KST 달력일';
+comment on column analytics_devices.first_gen_day is 'KST 달력일';
+comment on column analytics_devices.last_gen_day is 'KST 달력일';
+comment on column analytics_devices.first_share_day is 'KST 달력일';
+create or replace function kst_lint_functions()
+returns table (proname name, offending text) language sql stable as $$
+  select t.proname, t.offending
+  from (
+    select p.proname,
+           (select string_agg(r[1], ', ')
+              from regexp_matches(p.prosrc,
+                'current_date|now\(\)\s*::\s*date|date_trunc\(\s*''day''|localtimestamp|current_timestamp|at time zone|_at\s*::\s*date|timezone\(',
+                'gi') r) as offending
+    from pg_proc p
+    where p.pronamespace = 'public'::regnamespace and p.prokind = 'f' and p.proname not like 'kst\_%'
+  ) t
+  where t.offending is not null
+$$;
+revoke execute on function kst_lint_functions() from public, anon, authenticated;
+grant execute on function kst_lint_functions() to service_role;
+do $$
+declare v text;
+begin
+  select string_agg(l.proname || ' [' || l.offending || ']', '; ') into v from kst_lint_functions() l;
+  if v is not null then
+    raise exception 'kst_lint: 날짜 관용구가 kst_* 헬퍼를 우회함 — %', v;
+  end if;
+end $$;

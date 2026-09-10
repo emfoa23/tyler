@@ -88,6 +88,21 @@ hydration 이 안 돼 셀렉트·버튼이 반응하지 않는다), http 라 `cr
 `first_share_day`. 어드민 "바이럴 루프" 섹션이 당첨 확인→자랑 실행→공유 유입 신규 기기→생성 도달을
 윈도우별로 보여주고 성적표에 회차별 공유 수를 병기한다(이미지-only 유입은 direct 로 잡히는 한계 각주).
 
+## 시간 기준 — 하루 = KST 달력일 (2026-09-10)
+
+- **정의**: 하루는 Asia/Seoul 달력일 00:00~24:00 이다. 순간은 `timestamptz`(ISO 문자열), 날짜(`day_kst`·`*_day`)는 KST
+  달력일 `YYYY-MM-DD` 로만 저장·비교한다. "최근 24시간" 같은 롤링 창은 '하루'라 부르지 않는다. DB TimeZone 은 UTC 그대로
+  둔다(설정에 기대면 로컬·새 환경에서 조용히 어긋난다) — bare `::date`·`current_date` 는 UTC 날짜가 되므로 쓰지 않는다.
+- **헬퍼 하나씩**: 앱·스크립트는 [`lib/kst.mjs`](lib/kst.mjs)(`kstDay`·`kstDayStart`·`kstDayAdd`·`kstDateTime`; 추첨 시각은
+  `lib/draw-time.mjs`), SQL 은 `kst_today()`·`kst_day(timestamptz)`·`kst_day_start(date)`. 다른 곳에서 `timeZone`·
+  `toLocaleDateString`·`getDay()`류·+9시간 산술·인라인 `at time zone` 을 쓰지 않는다.
+- **생성 한도**: 기기당 **KST 달력일 200세트**, 자정에 초기화(`app/api/generate/route.ts` `DAILY_LIMIT`). 2026-09-10 까지는
+  "지금-24시간" 롤링 창이어서 429 문구("오늘·내일")·개인정보처리방침("일일 한도")과 뜻이 달랐다 — 달력일로 통일.
+- **가드**: `npm run check` = `scripts/check-kst.mjs`(금지 관용구 검사: 앱·스크립트·schema.sql·워크플로 `schedule:`·vercel
+  `crons`) + `node --test tests/`(자정·UTC 날짜 경계). `prebuild` 로 걸려 있어 Vercel 배포(`npm run build`)가 위반 시 실패한다.
+  schema.sql 말미의 자가 검사 `do` 블록과 `kst_lint_functions()` 가 **프로드 함수 본문**에 헬퍼를 우회한 관용구가 남았는지
+  잡는다(파일과 프로드가 어긋나는 드리프트 대비). 스케줄은 cron-job.org(전 잡 Asia/Seoul)만 쓴다.
+
 ## 운영 통계·어드민 (2026-08-29)
 
 `/admin`(운영자 전용, noindex) — **퍼널·유저 구성·유입·바이럴 루프·생성분석** 5섹션 + [오늘|7일|30일|전체](KST 달력일) 기간 탭.

@@ -7,11 +7,14 @@
   },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run check",
     "build": "next build",
     "start": "next start",
     "sync:draw": "node scripts/sync-draw.mjs",
     "sync:stores": "node scripts/sync-stores.mjs",
-    "backfill": "node scripts/backfill.mjs"
+    "backfill": "node scripts/backfill.mjs",
+    "check": "node scripts/check-kst.mjs && node --test tests/*.test.mjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2",

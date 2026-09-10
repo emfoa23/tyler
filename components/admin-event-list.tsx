@@ -2,17 +2,11 @@ import Link from "next/link";
 import { KIND_KO, landingLabel, srcLabel, type EventKind } from "@/lib/admin-labels";
 import type { RawEvent } from "@/lib/admin-events";
 import { eventsHref } from "@/lib/admin-events-url";
+import { kstDateTime } from "@/lib/kst.mjs";
 
 // 원본 이벤트 뷰어 UI — 표 대신 행 카드(UA·레퍼러가 길어 375px 에서 가로 스크롤 없이 접히게).
 // 1줄: 시각·종류(·회차). 2줄: 판정 결과를 칩으로(랜딩·소스) — 종류 옆에 이어 쓰면 좁은 화면에서 어색하게 꺾여서 분리.
 // 카드·pill 스타일은 운영 통계(admin-period-tabs·admin-sections Card)와 동일 토큰(stone) 재사용.
-
-function fmtKst(iso: string): string {
-  const d = new Date(iso);
-  const p = (n: number) => String(n).padStart(2, "0");
-  const kst = new Date(d.getTime() + 9 * 3600_000);
-  return `${kst.getUTCFullYear()}-${p(kst.getUTCMonth() + 1)}-${p(kst.getUTCDate())} ${p(kst.getUTCHours())}:${p(kst.getUTCMinutes())}:${p(kst.getUTCSeconds())}`;
-}
 
 /** 판정 칩 — 흐린 라벨 + 값. 2줄에 나열되며 좁으면 줄바꿈. */
 function Chip({ label, value }: { label: string; value: string }) {
@@ -50,7 +44,7 @@ export function EventList({ rows, current }: { rows: RawEvent[]; current: { kind
         return (
           <li key={e.id} className="rounded-2xl border border-stone-200 bg-white p-3 sm:p-4">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              <span className="tabular-nums text-stone-500">{fmtKst(e.created_at)}</span>
+              <span className="tabular-nums text-stone-500">{kstDateTime(e.created_at)}</span>
               <span className="rounded-md bg-stone-900 px-1.5 py-0.5 text-xs font-semibold text-white">
                 {KIND_KO[e.kind] ?? e.kind}
               </span>

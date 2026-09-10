@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { kstDay, kstDayAdd } from "./kst.mjs";
 
 // 운영 통계 데이터 접근 — 서버 전용(db 가 service role). 클라이언트 컴포넌트에서 import 금지.
 //
@@ -30,13 +31,6 @@ export const STAT_WINDOW_TABS: readonly { window: StatWindow; label: string }[] 
 ];
 
 
-/** KST 기준 offsetDays 일 전 날짜(YYYY-MM-DD). */
-export function kstDate(offsetDays = 0): string {
-  const kst = new Date(Date.now() + 9 * 3600 * 1000);
-  kst.setUTCDate(kst.getUTCDate() - offsetDays);
-  return kst.toISOString().slice(0, 10);
-}
-
 function windowDays(window: StatWindow): number | null {
   return window === "all" ? null : window;
 }
@@ -51,7 +45,7 @@ function toMetricRow(r: RawMetricRow): MetricRow {
 
 /** 윈도우 day-additive 지표 = 롤업(어제까지) + 오늘 라이브. PostgREST 기본 1,000행 제한 회피 페이징. */
 export async function fetchWindowMetrics(window: StatWindow): Promise<MetricRow[]> {
-  const today = kstDate(0);
+  const today = kstDay();
   const rollup: RawMetricRow[] = [];
   const PAGE = 1000;
   for (let offset = 0; ; offset += PAGE) {
@@ -59,7 +53,7 @@ export async function fetchWindowMetrics(window: StatWindow): Promise<MetricRow[
       .from("analytics_rollups")
       .select("metric,dim1,dim2,value")
       .lt("day_kst", today);
-    if (window !== "all") q = q.gte("day_kst", kstDate(window - 1));
+    if (window !== "all") q = q.gte("day_kst", kstDayAdd(today, -(window - 1)));
     const { data, error } = await q
       .order("day_kst", { ascending: true })
       .order("metric", { ascending: true })

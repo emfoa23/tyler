@@ -1,5 +1,6 @@
 import type { Draw, DrawNumbers, Store } from "./types";
 import { WEEK_MS, drawMoment } from "./draw-time.mjs";
+import { kstDay } from "./kst.mjs";
 
 // 온라인 판매 채널(동행복권 사이트). 배출점 데이터에 지점처럼 포함되며,
 // 순위·지점 페이지에도 예외 없이 포함하되 배지로만 구분한다 (2026-08-16 확정).
@@ -41,9 +42,10 @@ export function targetDrawFor(now: Date, latest: Pick<Draw, "draw_no" | "draw_da
   return latest.draw_no + Math.floor(diff / WEEK_MS) + 1;
 }
 
+// 회차의 추첨일(KST 달력일). 추첨 순간을 UTC 로 자르면 11:35Z 라 우연히 같은 날이었을 뿐이라 kstDay 로 명시(2026-09-10).
 export function drawDateFor(latest: Pick<Draw, "draw_no" | "draw_date">, drawNo: number): string {
   const t = drawMoment(latest.draw_date) + (drawNo - latest.draw_no) * WEEK_MS;
-  return new Date(t).toISOString().slice(0, 10);
+  return kstDay(t);
 }
 
 export const RANK_LABEL: Record<number, string> = {
